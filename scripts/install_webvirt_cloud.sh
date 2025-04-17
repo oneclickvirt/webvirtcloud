@@ -48,8 +48,6 @@ init_system_vars() {
             [[ -n $SYSTEM ]] && break
         fi
     done
-    # 设置默认密码
-    mysql_password=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 10)
 }
 
 ###########################################
@@ -175,7 +173,6 @@ check_system_compatibility() {
 # 安装基本依赖
 install_basic_dependencies() {
     _yellow "安装基本依赖"
-    # 安装基本工具
     check_update
     if ! command -v curl >/dev/null 2>&1; then
         _yellow "安装 curl"
@@ -211,7 +208,7 @@ install_basic_dependencies() {
 # Docker安装模块
 #######################
 check_china() {
-    _yellow "IP area being detected ......"
+    _yellow "检测IP区域......"
     if [[ -z "${CN}" ]]; then
         if [[ $(curl -m 6 -s https://ipapi.co/json | grep 'China') != "" ]]; then
             _yellow "根据ipapi.co提供的信息，当前IP可能在中国"
@@ -274,24 +271,74 @@ install_docker_and_compose() {
 }
 
 install_controller() {
+    _yellow "开始安装控制器"
+    cd /root
+    if [ -d "webvirtcloud" ]; then
+        rm -rf webvirtcloud
+    fi
     if [[ -z "${CN}" || "${CN}" != true ]]; then
         git clone https://github.com/webvirtcloud/webvirtcloud.git
     else
         wget https://cdn.spiritlhl.net/https://github.com/webvirtcloud/webvirtcloud/archive/refs/heads/master.zip
         unzip master.zip
         mv webvirtcloud-master webvirtcloud
+        rm -f master.zip
     fi
     cd webvirtcloud
     if [ -z "$IPV4" ]; then
-        echo "请先设置全局变量 IPV4"
-        return 1
+        _red "错误: IPV4变量未设置，正在重新获取..."
+        check_ipv4
+        if [ -z "$IPV4" ]; then
+            _red "无法获取IPV4地址，请手动设置后重试"
+            return 1
+        fi
     fi
+    _yellow "创建环境配置文件..."
     DOMAIN_NAME="$(echo "$IPV4" | tr '.' '-')".nip.io
     cat > env.local <<EOF
 DOMAIN_NAME=${DOMAIN_NAME}
 VITE_DISPLAY_PRICES=true
 VITE_LOADBALANCER=true
 EOF
+    _green "配置信息如下:"
     cat env.local
+    _yellow "启动WebVirtCloud..."
     ./webvirtcloud.sh start
+    if [ $? -eq 0 ]; then
+        _green "WebVirtCloud安装成功!"
+        _green "您可以通过以下地址访问: http://${DOMAIN_NAME}"
+    else
+        _red "WebVirtCloud启动失败，请检查日志"
+    fi
 }
+
+###########################################
+# 主函数
+###########################################
+
+main() {
+    check_root
+    setup_locale
+    init_system_vars
+    check_system_compatibility
+    _yellow "正在检测IP地址..."
+    check_ipv4
+    _green "当前IP地址: $IPV4"
+    check_china
+    install_basic_dependencies
+    case "$1" in
+        ctl|controller)
+            _yellow "准备安装WebVirtCloud控制器..."
+            install_docker_and_compose
+            install_controller
+            ;;
+        *)
+            _yellow "使用方法: $0 ctl"
+            _yellow "请指定正确的参数运行脚本"
+            exit 1
+            ;;
+    esac
+    _green "执行完成!"
+}
+
+main "$@"
