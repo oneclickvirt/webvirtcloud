@@ -282,5 +282,15 @@ install_controller() {
         mv webvirtcloud-master webvirtcloud
     fi
     cd webvirtcloud
-    
+    if [ -z "$IPV4" ]; then
+        echo "请先设置全局变量 IPV4"
+        return 1
+    fi
+    DOMAIN_NAME="$(echo "$IPV4" | tr '.' '-')".nip.io
+    cat > env.local <<EOF
+DOMAIN_NAME=${DOMAIN_NAME}
+VITE_DISPLAY_PRICES=true
+VITE_LOADBALANCER=true
+EOF
+    cat env.local
 }
