@@ -295,6 +295,9 @@ install_controller() {
     fi
     _yellow "创建环境配置文件..."
     DOMAIN_NAME="$(echo "$IPV4" | tr '.' '-')".nip.io
+    mkdir -p .caddy/certs
+    openssl req -x509 -newkey rsa:4096 -keyout .caddy/certs/key.pem -out .caddy/certs/cert.pem -days 365 -nodes -subj "/CN=${DOMAIN_NAME}"
+    cp Caddyfile.selfsigned Caddyfile
     cat > env.local <<EOF
 DOMAIN_NAME=${DOMAIN_NAME}
 VITE_DISPLAY_PRICES=true
