@@ -227,7 +227,7 @@ install_with_ubuntu() {
     fi
     local interface=$(ls /sys/class/net/ | grep -E '^(eth|en)' | head -n 1)
     nmcli conn add type bridge ifname br-ext con-name br-ext
-    nmcli conn add type bridge-slave ifname "${interface}" con-name eno1 master br-ext # NEED TO CHANGE eno1 ON YOUR INTERFACE NAME
+    nmcli conn add type bridge-slave ifname "${interface}" con-name "${interface}" master br-ext # NEED TO CHANGE eno1 ON YOUR INTERFACE NAME
     nmcli conn modify br-ext ipv4.method manual ipv4.addresses 10.255.0.1/16 # for floating IP feature - DO NOT CHANGE
     nmcli conn modify br-ext ipv4.method manual +ipv4.addresses 169.254.169.254/16 # for metadata service - DO NOT CHANGE
     nmcli conn modify br-ext ipv4.method manual +ipv4.addresses 192.168.50.10/24 # NEED TO CHANGE 192.168.50.10/24 ON YOUR CIDR
