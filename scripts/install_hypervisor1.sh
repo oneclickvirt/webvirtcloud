@@ -222,22 +222,6 @@ EOF
         echo -e "\nnetwork:\n  version: 2\n  renderer: NetworkManager" | sudo tee -a "$FILE" > /dev/null
     fi
     sudo netplan apply
-    interface=$(ls /sys/class/net/ | grep -E '^(eth|en|eno|ens|enp)' | grep -v lo | head -n 1)
-    echo "检测到的主网卡接口: $interface"
-    nmcli device status
-    nmcli connection delete br-ext 2>/dev/null
-    nmcli connection delete "${interface}" 2>/dev/null
-    nmcli connection add type bridge ifname br-ext con-name br-ext
-    nmcli connection add type bridge-slave ifname "${interface}" con-name "${interface}" master br-ext
-    nmcli connection modify br-ext ipv4.method manual
-    nmcli connection modify br-ext +ipv4.addresses 10.255.0.1/16            # floating IP
-    nmcli connection modify br-ext +ipv4.addresses 169.254.169.254/16       # metadata service
-    nmcli connection modify br-ext +ipv4.addresses 192.168.50.10/24         # ←❗修改为你的实际地址段
-    nmcli connection modify br-ext ipv4.gateway 192.168.50.1                # ←❗修改为你的网关
-    nmcli connection modify br-ext ipv4.dns "8.8.8.8 1.1.1.1"
-    nmcli connection modify br-ext bridge.stp no
-    nmcli connection modify br-ext 802-3-ethernet.mtu 1500
-    nmcli connection up br-ext
 }
 
 install_with_debian() {
@@ -275,4 +259,23 @@ install_with_debian() {
     # elif ! grep -q "^\s*plugins=.*ifupdown.*keyfile.*" "$CONF_FILE"; then
     #     sudo sed -i '/^\[main\]/,/^\[.*\]/ s/^\s*plugins=.*/plugins=ifupdown,keyfile/' "$CONF_FILE"
     # fi
+}
+
+rebuild_network() {
+    interface=$(ls /sys/class/net/ | grep -E '^(eth|en|eno|ens|enp)' | grep -v lo | head -n 1)
+    echo "检测到的主网卡接口: $interface"
+    nmcli device status
+    nmcli connection delete br-ext 2>/dev/null
+    nmcli connection delete "${interface}" 2>/dev/null
+    nmcli connection add type bridge ifname br-ext con-name br-ext
+    nmcli connection add type bridge-slave ifname "${interface}" con-name "${interface}" master br-ext
+    nmcli connection modify br-ext ipv4.method manual
+    nmcli connection modify br-ext +ipv4.addresses 10.255.0.1/16            # floating IP
+    nmcli connection modify br-ext +ipv4.addresses 169.254.169.254/16       # metadata service
+    nmcli connection modify br-ext +ipv4.addresses 192.168.50.10/24
+    nmcli connection modify br-ext ipv4.gateway 192.168.50.1
+    nmcli connection modify br-ext ipv4.dns "8.8.8.8 1.1.1.1"
+    nmcli connection modify br-ext bridge.stp no
+    nmcli connection modify br-ext 802-3-ethernet.mtu 1500
+    nmcli connection up br-ext
 }
