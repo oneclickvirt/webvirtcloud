@@ -225,6 +225,18 @@ install_with_ubuntu() {
             echo "  renderer: NetworkManager"
         } >> "$FILE"
     fi
+    local interface=$(ls /sys/class/net/ | grep -E '^(eth|en)' | head -n 1)
+    nmcli conn add type bridge ifname br-ext con-name br-ext
+    nmcli conn add type bridge-slave ifname "${interface}" con-name eno1 master br-ext # NEED TO CHANGE eno1 ON YOUR INTERFACE NAME
+    nmcli conn modify br-ext ipv4.method manual ipv4.addresses 10.255.0.1/16 # for floating IP feature - DO NOT CHANGE
+    nmcli conn modify br-ext ipv4.method manual +ipv4.addresses 169.254.169.254/16 # for metadata service - DO NOT CHANGE
+    nmcli conn modify br-ext ipv4.method manual +ipv4.addresses 192.168.50.10/24 # NEED TO CHANGE 192.168.50.10/24 ON YOUR CIDR
+    nmcli conn modify br-ext ipv4.method manual ipv4.gateway 192.168.50.1 # NEED TO CHANGE 192.168.50.1 ON YOUR GATEWAY IP
+    nmcli conn modify br-ext ipv4.method manual ipv4.dns 8.8.8.8,1.1.1.1
+    nmcli conn modify br-ext bridge.stp no
+    nmcli conn modify br-ext 802-3-ethernet.mtu 1500
+    nmcli conn up "${interface}" # NEED TO CHANGE eno1 ON YOUR INTERFACE NAME
+    nmcli conn up br-ext
 }
 
 install_with_debian() {
