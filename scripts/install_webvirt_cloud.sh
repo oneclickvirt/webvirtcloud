@@ -201,6 +201,10 @@ install_basic_dependencies() {
         _yellow "安装 jq"
         ${PACKAGE_INSTALL[int]} jq
     fi
+    if ! command -v openssl >/dev/null 2>&1; then
+        _yellow "安装 openssl"
+        ${PACKAGE_INSTALL[int]} openssl
+    fi
 }
 
 #######################
@@ -259,7 +263,24 @@ install_docker_and_compose() {
             curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" -o /usr/local/bin/docker-compose
             chmod +x /usr/local/bin/docker-compose
             docker-compose --version
+        else
+            _yellow "Installing docker-compose"
+            curl -L "https://cdn.spiritlhl.net/https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" -o /usr/local/bin/docker-compose
+            chmod +x /usr/local/bin/docker-compose
+            docker-compose --version
         fi
     fi
     sleep 1
+}
+
+install_controller() {
+    if [[ -z "${CN}" || "${CN}" != true ]]; then
+        git clone https://github.com/webvirtcloud/webvirtcloud.git
+    else
+        wget https://cdn.spiritlhl.net/https://github.com/webvirtcloud/webvirtcloud/archive/refs/heads/master.zip
+        unzip master.zip
+        mv webvirtcloud-master webvirtcloud
+    fi
+    cd webvirtcloud
+    
 }
