@@ -263,14 +263,16 @@ install_with_debian() {
 
 rebuild_network() {
     interface=$(ls /sys/class/net/ | grep -E '^(eth|en|eno|ens|enp)' | grep -v lo | head -n 1)
-    ipv4_address=$(ip addr show | awk '/inet .*global/ && !/inet6/ {print $2}' | sed -n '1p')
-    ipv4_gateway=$(ip route | awk '/default/ {print $3}' | sed -n '1p')
+    ipv4_address=$(ip addr show "$interface" | awk '/inet / {print $2}' | head -n 1)
+    ipv4_gateway=$(ip route | awk '/default/ {print $3}' | head -n 1)
     echo "检测到的主网卡接口: $interface"
     echo "IPv4 地址: $ipv4_address"
     echo "IPv4 网关: $ipv4_gateway"
-    nmcli device status
+    # 旧配置删除
     nmcli connection delete br-ext 2>/dev/null
+    nmcli connection delete br-int 2>/dev/null
     nmcli connection delete "${interface}" 2>/dev/null
+    # 公网网桥创建
     nmcli connection add type bridge ifname br-ext con-name br-ext
     nmcli connection add type bridge-slave ifname "${interface}" con-name "${interface}" master br-ext
     nmcli connection modify br-ext ipv4.method manual
@@ -282,13 +284,15 @@ rebuild_network() {
     nmcli connection modify br-ext bridge.stp no
     nmcli connection modify br-ext 802-3-ethernet.mtu 1500
     nmcli connection up br-ext
-    nmcli conn add type bridge ifname br-int con-name br-int ipv4.method disabled ipv6.method ignore
-    nmcli conn add type bridge-slave ifname "${interface}" con-name "${interface}" master br-int
-    nmcli conn modify br-int bridge.stp no
-    nmcli conn modify br-int 802-3-ethernet.mtu 1500
-    nmcli conn up "${interface}"
-    nmcli conn up br-int
+    # 内网网桥创建 由于单网卡，仅内部通信
+    nmcli connection add type bridge ifname br-int con-name br-int ipv4.method disabled ipv6.method ignore
+    nmcli connection modify br-int bridge.stp no
+    nmcli connection modify br-int 802-3-ethernet.mtu 1500
+    nmcli connection up br-int
+    echo "=== 网络状态 ==="
+    nmcli device status
 }
+
 
 libvirt_setup() {
     curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/libvirt.sh | sudo bash
