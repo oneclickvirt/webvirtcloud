@@ -205,38 +205,39 @@ install_basic_dependencies() {
 }
 
 install_with_ubuntu() {
+    sudo apt update
     sudo apt install -y network-manager firewalld
     FILE="/etc/netplan/00-installer-config.yaml"
     BACKUP_DIR="/etc/netplan"
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     BACKUP_FILE="$BACKUP_DIR/00-installer-config.yaml.bak_$TIMESTAMP"
     if [ ! -f "$FILE" ]; then
-        {
-            echo "network:"
-            echo "  version: 2"
-            echo "  renderer: NetworkManager"
-        } > "$FILE"
+        cat <<EOF | sudo tee "$FILE"
+network:
+  version: 2
+  renderer: NetworkManager
+EOF
     else
-        cp "$FILE" "$BACKUP_FILE"
-        {
-            echo ""
-            echo "network:"
-            echo "  version: 2"
-            echo "  renderer: NetworkManager"
-        } >> "$FILE"
+        sudo cp "$FILE" "$BACKUP_FILE"
+        echo -e "\nnetwork:\n  version: 2\n  renderer: NetworkManager" | sudo tee -a "$FILE" > /dev/null
     fi
-    local interface=$(ls /sys/class/net/ | grep -E '^(eth|en)' | head -n 1)
-    nmcli conn add type bridge ifname br-ext con-name br-ext
-    nmcli conn add type bridge-slave ifname "${interface}" con-name "${interface}" master br-ext # NEED TO CHANGE eno1 ON YOUR INTERFACE NAME
-    nmcli conn modify br-ext ipv4.method manual ipv4.addresses 10.255.0.1/16 # for floating IP feature - DO NOT CHANGE
-    nmcli conn modify br-ext ipv4.method manual +ipv4.addresses 169.254.169.254/16 # for metadata service - DO NOT CHANGE
-    nmcli conn modify br-ext ipv4.method manual +ipv4.addresses 192.168.50.10/24 # NEED TO CHANGE 192.168.50.10/24 ON YOUR CIDR
-    nmcli conn modify br-ext ipv4.method manual ipv4.gateway 192.168.50.1 # NEED TO CHANGE 192.168.50.1 ON YOUR GATEWAY IP
-    nmcli conn modify br-ext ipv4.method manual ipv4.dns 8.8.8.8,1.1.1.1
-    nmcli conn modify br-ext bridge.stp no
-    nmcli conn modify br-ext 802-3-ethernet.mtu 1500
-    nmcli conn up "${interface}" # NEED TO CHANGE eno1 ON YOUR INTERFACE NAME
-    nmcli conn up br-ext
+    sudo netplan apply
+    interface=$(ls /sys/class/net/ | grep -E '^(eth|en|eno|ens|enp)' | grep -v lo | head -n 1)
+    echo "检测到的主网卡接口: $interface"
+    nmcli device status
+    nmcli connection delete br-ext 2>/dev/null
+    nmcli connection delete "${interface}" 2>/dev/null
+    nmcli connection add type bridge ifname br-ext con-name br-ext
+    nmcli connection add type bridge-slave ifname "${interface}" con-name "${interface}" master br-ext
+    nmcli connection modify br-ext ipv4.method manual
+    nmcli connection modify br-ext +ipv4.addresses 10.255.0.1/16            # floating IP
+    nmcli connection modify br-ext +ipv4.addresses 169.254.169.254/16       # metadata service
+    nmcli connection modify br-ext +ipv4.addresses 192.168.50.10/24         # ←❗修改为你的实际地址段
+    nmcli connection modify br-ext ipv4.gateway 192.168.50.1                # ←❗修改为你的网关
+    nmcli connection modify br-ext ipv4.dns "8.8.8.8 1.1.1.1"
+    nmcli connection modify br-ext bridge.stp no
+    nmcli connection modify br-ext 802-3-ethernet.mtu 1500
+    nmcli connection up br-ext
 }
 
 install_with_debian() {
