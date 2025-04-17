@@ -303,15 +303,20 @@ DOMAIN_NAME=${DOMAIN_NAME}
 VITE_DISPLAY_PRICES=true
 VITE_LOADBALANCER=true
 EOF
-    _green "配置信息如下:"
     cat env.local
     _yellow "启动WebVirtCloud..."
     ./webvirtcloud.sh start
     if [ $? -eq 0 ]; then
-        _green "WebVirtCloud安装成功!"
-        _green "您可以通过以下地址访问: http://${DOMAIN_NAME}"
+        _green "WebVirtCloud installation completed successfully!"
+        _green "You can access the WebVirtCloud interface at"
+        _green "User Panel: https://${DOMAIN_NAME}"
+        _green "Admin Panel: https://${DOMAIN_NAME}/admin/"
+        _green "Ensure your firewall allows access to ports 80 (HTTP) and 443 (HTTPS) for the WebVirtCloud interface."
+        _green "Default Credentials:"
+        _green "Username: admin@webvirt.cloud"
+        _green "Password: admin"
     else
-        _red "WebVirtCloud启动失败，请检查日志"
+        _red "WebVirtCloud failed to start. Please check the logs for more information."
     fi
 }
 
