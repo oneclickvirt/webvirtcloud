@@ -293,4 +293,5 @@ VITE_DISPLAY_PRICES=true
 VITE_LOADBALANCER=true
 EOF
     cat env.local
+    ./webvirtcloud.sh start
 }
