@@ -263,7 +263,11 @@ install_with_debian() {
 
 rebuild_network() {
     interface=$(ls /sys/class/net/ | grep -E '^(eth|en|eno|ens|enp)' | grep -v lo | head -n 1)
+    ipv4_address=$(ip addr show | awk '/inet .*global/ && !/inet6/ {print $2}' | sed -n '1p')
+    ipv4_gateway=$(ip route | awk '/default/ {print $3}' | sed -n '1p')
     echo "检测到的主网卡接口: $interface"
+    echo "IPv4 地址: $ipv4_address"
+    echo "IPv4 网关: $ipv4_gateway"
     nmcli device status
     nmcli connection delete br-ext 2>/dev/null
     nmcli connection delete "${interface}" 2>/dev/null
@@ -272,10 +276,28 @@ rebuild_network() {
     nmcli connection modify br-ext ipv4.method manual
     nmcli connection modify br-ext +ipv4.addresses 10.255.0.1/16            # floating IP
     nmcli connection modify br-ext +ipv4.addresses 169.254.169.254/16       # metadata service
-    nmcli connection modify br-ext +ipv4.addresses 192.168.50.10/24
-    nmcli connection modify br-ext ipv4.gateway 192.168.50.1
+    nmcli connection modify br-ext +ipv4.addresses "${ipv4_address}"
+    nmcli connection modify br-ext ipv4.gateway "${ipv4_gateway}"
     nmcli connection modify br-ext ipv4.dns "8.8.8.8 1.1.1.1"
     nmcli connection modify br-ext bridge.stp no
     nmcli connection modify br-ext 802-3-ethernet.mtu 1500
     nmcli connection up br-ext
+    nmcli conn add type bridge ifname br-int con-name br-int ipv4.method disabled ipv6.method ignore
+    nmcli conn add type bridge-slave ifname "${interface}" con-name "${interface}" master br-int
+    nmcli conn modify br-int bridge.stp no
+    nmcli conn modify br-int 802-3-ethernet.mtu 1500
+    nmcli conn up "${interface}"
+    nmcli conn up br-int
 }
+
+libvirt_setup() {
+    curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/libvirt.sh | sudo bash
+}
+
+prometheus_setup() {
+    curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/prometheus.sh | sudo bash
+}
+
+
+
+
