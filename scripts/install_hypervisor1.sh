@@ -1,6 +1,6 @@
 #!/bin/bash
 # https://github.com/oneclickvirt/webvirtcloud
-# 2025.04.18
+# 2025.04.19
 
 ###########################################
 # 初始化和环境变量设置
@@ -8,6 +8,13 @@
 set -e
 export DEBIAN_FRONTEND=noninteractive
 cd /root >/dev/null 2>&1
+
+WEBVIRTBACKED_IP="$1"
+if [ -z "$WEBVIRTBACKED_IP" ]; then
+    echo "未设置ControllerIP，请提供一个IP地址"
+    exit 1
+fi
+_green "WEBVIRTBACKED_IP 设置为: $WEBVIRTBACKED_IP"
 
 # 设置UTF-8语言环境
 setup_locale() {
@@ -303,7 +310,6 @@ prometheus_setup() {
 
 firewall_setup() {
     systemctl enable --now firewalld
-    WEBVIRTBACKED_IP=${IPV4}
     firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 1 -m physdev --physdev-is-bridged -j ACCEPT # Bridge traffic rule
     firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -d 10.255.0.0/16 -j MASQUERADE # Floating IP feature rule
     firewall-cmd --permanent --direct --add-rule ipv4 nat PREROUTING 0 -i br-ext '!' -s 169.254.0.0/16 -d 169.254.169.254 -p tcp -m tcp --dport 80 -j DNAT --to-destination $WEBVIRTBACKED_IP:80 # CLoud-init metadata service rule
@@ -320,13 +326,12 @@ computer_setup() {
 
 extract_webvirtcloud_token() {
     local config_file="/etc/webvirtcompute/webvirtcompute.ini"
-    local backend_ip="${IPV4}"
     if [[ -f "$config_file" ]]; then
         local token
         token=$(awk -F ' *= *' '/^\[daemon\]/{f=1} f && $1=="token"{print $2; exit}' "$config_file")
         if [[ -n "$token" ]]; then
             _green "Installation complete! WebVirtCloud compute node has been successfully deployed."
-            _green "Backend public IP address: $backend_ip"
+            _green "From $config_file"
             _green "Daemon token: $token"
         else
             _red "Token not found in [daemon] section. File: $config_file"
