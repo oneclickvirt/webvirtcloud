@@ -1,6 +1,6 @@
 #!/bin/bash
 # https://github.com/oneclickvirt/webvirtcloud
-# 2025.04.17
+# 2025.04.18
 
 ###########################################
 # 初始化和环境变量设置
@@ -293,13 +293,52 @@ rebuild_network() {
     nmcli device status
 }
 
-
 libvirt_setup() {
-    curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/libvirt.sh | sudo bash
-    # curl -fsSL https://raw.githubusercontent.com/spiritlhls/webvirtcompute/master/scripts/libvirt.sh | sudo bash
+    # curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/libvirt.sh | sudo bash
+    curl -fsSL https://raw.githubusercontent.com/spiritlhls/webvirtcompute/master/scripts/libvirt.sh | sudo bash
 }
 
 prometheus_setup() {
-    curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/prometheus.sh | sudo bash
-    # curl -fsSL https://raw.githubusercontent.com/spiritlhls/webvirtcompute/master/scripts/prometheus.sh | sudo bash
+    # curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/prometheus.sh | sudo bash
+    curl -fsSL https://raw.githubusercontent.com/spiritlhls/webvirtcompute/master/scripts/prometheus.sh | sudo bash
 }
+
+firewall_setup() {
+    systemctl enable --now firewalld
+    WEBVIRTBACKED_IP=${IPV4}
+    firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 1 -m physdev --physdev-is-bridged -j ACCEPT # Bridge traffic rule
+    firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -d 10.255.0.0/16 -j MASQUERADE # Floating IP feature rule
+    firewall-cmd --permanent --direct --add-rule ipv4 nat PREROUTING 0 -i br-ext '!' -s 169.254.0.0/16 -d 169.254.169.254 -p tcp -m tcp --dport 80 -j DNAT --to-destination $WEBVIRTBACKED_IP:80 # CLoud-init metadata service rule
+    firewall-cmd --permanent --zone=trusted --add-source=169.254.0.0/16 # Move cloud-init metadata service to trusted zone
+    firewall-cmd --permanent --zone=trusted --add-interface=br-ext # Move br-ext to trusted zone
+    firewall-cmd --permanent --zone=trusted --add-interface=br-int # Move br-int to trusted zone
+    firewall-cmd --reload
+}
+
+computer_setup() {
+    curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/install.sh | sudo bash
+    curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/update.sh | sudo bash
+}
+
+main() {
+    setup_locale
+    check_root
+    init_system_vars
+    check_system_compatibility
+    install_basic_dependencies
+    check_ipv4
+    if [[ "${RELEASE[int]}" == "Ubuntu" ]]; then
+        install_with_ubuntu
+    elif [[ "${RELEASE[int]}" == "Debian" ]]; then
+        install_with_debian
+    fi
+    rebuild_network
+    libvirt_setup
+    prometheus_setup
+    firewall_setup
+    computer_setup
+    _green "安装完成！WebVirtCloud计算节点已成功部署。"
+    _green "公网IP地址: ${IPV4}"
+}
+
+main
