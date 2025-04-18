@@ -275,12 +275,11 @@ rebuild_network() {
     # 公网网桥创建
     nmcli connection add type bridge ifname br-ext con-name br-ext
     nmcli connection add type bridge-slave ifname "${interface}" con-name "${interface}" master br-ext
-    nmcli connection modify br-ext ipv4.method manual
-    nmcli connection modify br-ext +ipv4.addresses 10.255.0.1/16            # floating IP
-    nmcli connection modify br-ext +ipv4.addresses 169.254.169.254/16       # metadata service
+    nmcli connection modify br-ext +ipv4.addresses 10.255.0.1/16
+    nmcli connection modify br-ext +ipv4.addresses 169.254.169.254/16
     nmcli connection modify br-ext +ipv4.addresses "${ipv4_address}"
     nmcli connection modify br-ext ipv4.gateway "${ipv4_gateway}"
-    nmcli connection modify br-ext ipv4.dns "8.8.8.8 1.1.1.1"
+    nmcli connection modify br-ext ipv4.method manual ipv4.dns 8.8.8.8,1.1.1.1
     nmcli connection modify br-ext bridge.stp no
     nmcli connection modify br-ext 802-3-ethernet.mtu 1500
     nmcli connection up br-ext
@@ -301,7 +300,3 @@ libvirt_setup() {
 prometheus_setup() {
     curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/prometheus.sh | sudo bash
 }
-
-
-
-
