@@ -318,6 +318,24 @@ computer_setup() {
     curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/update.sh | sudo bash
 }
 
+extract_webvirtcloud_token() {
+    local config_file="/etc/webvirtcompute/webvirtcompute.ini"
+    local backend_ip="${IPV4}"
+    if [[ -f "$config_file" ]]; then
+        local token
+        token=$(awk -F ' *= *' '/^\[daemon\]/{f=1} f && $1=="token"{print $2; exit}' "$config_file")
+        if [[ -n "$token" ]]; then
+            _green "Installation complete! WebVirtCloud compute node has been successfully deployed."
+            _green "Backend public IP address: $backend_ip"
+            _green "Daemon token: $token"
+        else
+            _red "Token not found in [daemon] section. File: $config_file"
+        fi
+    else
+        echo "Installation failed! Configuration file not found: $config_file"
+    fi
+}
+
 main() {
     setup_locale
     check_root
@@ -335,8 +353,7 @@ main() {
     prometheus_setup
     firewall_setup
     computer_setup
-    _green "安装完成！WebVirtCloud计算节点已成功部署。"
-    _green "公网IP地址: ${IPV4}"
+    extract_webvirtcloud_token
 }
 
 main
