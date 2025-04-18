@@ -5,6 +5,7 @@ Controller安装
 至少1核1G内存10G空的硬盘
 
 username: admin@webvirt.cloud
+
 password: admin
 
 ```
