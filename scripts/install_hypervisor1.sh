@@ -294,13 +294,11 @@ rebuild_network() {
 }
 
 libvirt_setup() {
-    # curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/libvirt.sh | sudo bash
-    curl -fsSL https://raw.githubusercontent.com/spiritlhls/webvirtcompute/master/scripts/libvirt.sh | sudo bash
+    curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/libvirt.sh | sudo bash
 }
 
 prometheus_setup() {
-    # curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/prometheus.sh | sudo bash
-    curl -fsSL https://raw.githubusercontent.com/spiritlhls/webvirtcompute/master/scripts/prometheus.sh | sudo bash
+    curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/prometheus.sh | sudo bash
 }
 
 firewall_setup() {
