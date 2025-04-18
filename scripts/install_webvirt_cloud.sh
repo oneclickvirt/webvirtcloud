@@ -1,11 +1,11 @@
 #!/bin/bash
 # https://github.com/oneclickvirt/webvirtcloud
-# 2025.04.17
+# 2025.04.18
 
 ###########################################
 # 初始化和环境变量设置
 ###########################################
-
+set -e
 export DEBIAN_FRONTEND=noninteractive
 cd /root >/dev/null 2>&1
 
@@ -238,7 +238,7 @@ install_docker_and_compose() {
         _yellow "Installing docker"
         if [[ -z "${CN}" || "${CN}" != true ]]; then
             bash <(curl -sSL https://raw.githubusercontent.com/SuperManito/LinuxMirrors/main/DockerInstallation.sh) \
-                --source mirrors.tencent.com/docker-ce \
+                --source download.docker.com \
                 --source-registry registry.hub.docker.com \
                 --protocol http \
                 --install-latest true \
