@@ -5,7 +5,7 @@
 ###########################################
 # 初始化和环境变量设置
 ###########################################
-
+set -e
 export DEBIAN_FRONTEND=noninteractive
 cd /root >/dev/null 2>&1
 
@@ -269,9 +269,9 @@ rebuild_network() {
     echo "IPv4 地址: $ipv4_address"
     echo "IPv4 网关: $ipv4_gateway"
     # 旧配置删除
-    nmcli connection delete br-ext 2>/dev/null
-    nmcli connection delete br-int 2>/dev/null
-    nmcli connection delete "${interface}" 2>/dev/null
+    nmcli connection delete br-ext 2>/dev/null || true
+    nmcli connection delete br-int 2>/dev/null || true
+    nmcli connection delete "${interface}" 2>/dev/null || true
     # 公网网桥创建
     nmcli connection add type bridge ifname br-ext con-name br-ext
     nmcli connection add type bridge-slave ifname "${interface}" con-name "${interface}" master br-ext
