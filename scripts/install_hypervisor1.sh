@@ -288,6 +288,7 @@ rebuild_network() {
     nmcli connection modify br-int bridge.stp no
     nmcli connection modify br-int 802-3-ethernet.mtu 1500
     nmcli connection up br-int
+    sleep 3
     echo "=== 网络状态 ==="
     nmcli device status
 }
