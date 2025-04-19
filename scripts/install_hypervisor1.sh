@@ -10,11 +10,6 @@ export DEBIAN_FRONTEND=noninteractive
 cd /root >/dev/null 2>&1
 
 WEBVIRTBACKED_IP="$1"
-if [ -z "$WEBVIRTBACKED_IP" ]; then
-    echo "未设置ControllerIP，请提供一个IP地址"
-    exit 1
-fi
-_green "WEBVIRTBACKED_IP 设置为: $WEBVIRTBACKED_IP"
 
 # 设置UTF-8语言环境
 setup_locale() {
@@ -344,6 +339,11 @@ extract_webvirtcloud_token() {
 main() {
     setup_locale
     check_root
+    if [ -z "$WEBVIRTBACKED_IP" ]; then
+        echo "未设置Controller的IP，请提供一个IP地址"
+        exit 1
+    fi
+    _green "WEBVIRTBACKED_IP 设置为: $WEBVIRTBACKED_IP"
     init_system_vars
     check_system_compatibility
     install_basic_dependencies
