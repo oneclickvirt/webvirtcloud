@@ -37,3 +37,7 @@ bash install_hypervisor1.sh x.x.x.x
 安装完毕后会显示纳管所用的token，这是需要在Controller的Admin面板中的Computers页面添加的节点信息
 
 安装过程大概需要20~25分钟，主要耗时在```/var/lib/libvirt/isos/finnix-125.iso```的下载，这块无法加速，建议挂在tmux或者screen中进行安装
+
+# Thanks
+
+[webvirt.cloud](https://webvirt.cloud/)
