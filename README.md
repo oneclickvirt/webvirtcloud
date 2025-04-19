@@ -1,5 +1,7 @@
 # webvirtcloud
 
+[![hits](https://hits.spiritlhl.net/webvirtcloud.svg?action=hit&title=hits&title_bg=%23555555&count_bg=%233aebee&edge_flat=false)](https://hits.spiritlhl.net)
+
 Controller安装
 
 至少1核1G内存10G空的硬盘
