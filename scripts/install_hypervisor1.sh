@@ -315,6 +315,8 @@ firewall_setup() {
     firewall-cmd --permanent --zone=trusted --add-source=169.254.0.0/16 # Move cloud-init metadata service to trusted zone
     firewall-cmd --permanent --zone=trusted --add-interface=br-ext # Move br-ext to trusted zone
     firewall-cmd --permanent --zone=trusted --add-interface=br-int # Move br-int to trusted zone
+    firewall-cmd --zone=public --add-port=1-65535/tcp --permanent
+    firewall-cmd --zone=public --add-port=1-65535/udp --permanent
     firewall-cmd --reload
 }
 
