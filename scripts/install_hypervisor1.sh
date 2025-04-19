@@ -204,6 +204,10 @@ install_basic_dependencies() {
         _yellow "安装 openssl"
         ${PACKAGE_INSTALL[int]} openssl
     fi
+    if ! command -v firewalld >/dev/null 2>&1; then
+        _yellow "安装 firewalld"
+        ${PACKAGE_INSTALL[int]} firewalld
+    fi
 }
 
 install_with_ubuntu() {
