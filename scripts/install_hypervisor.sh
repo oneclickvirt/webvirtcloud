@@ -303,6 +303,9 @@ rebuild_network() {
     echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
     echo "net.ipv4.ip_forward=1" >> /etc/sysctl.d/99-sysctl.conf
     sysctl -p
+    nmcli device set veth-br-ext managed yes
+    nmcli device set veth-br-int managed yes
+    sleep 3
     echo "=== 网络状态 ==="
     nmcli device status
     ip a
