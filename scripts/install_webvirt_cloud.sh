@@ -334,19 +334,10 @@ main() {
     _green "当前IP地址: $IPV4"
     check_china
     install_basic_dependencies
-    case "$1" in
-        ctl|controller)
-            _yellow "准备安装WebVirtCloud控制器..."
-            install_docker_and_compose
-            install_controller
-            ;;
-        *)
-            _yellow "使用方法: $0 ctl"
-            _yellow "请指定正确的参数运行脚本"
-            exit 1
-            ;;
-    esac
+    _yellow "准备安装WebVirtCloud控制器..."
+    install_docker_and_compose
+    install_controller
     _green "执行完成!"
 }
 
-main "$@"
+main
