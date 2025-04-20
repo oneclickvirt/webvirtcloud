@@ -271,51 +271,18 @@ install_with_debian() {
     # fi
 }
 
-# rebuild_network() {
-#     interface=$(ls /sys/class/net/ | grep -E '^(eth|en|eno|ens|enp)' | grep -v lo | head -n 1)
-#     ipv4_address=$(ip addr show "$interface" | awk '/inet / {print $2}' | head -n 1)
-#     ipv4_gateway=$(ip route | awk '/default/ {print $3}' | head -n 1)
-#     echo "检测到的主网卡接口: $interface"
-#     echo "IPv4 地址: $ipv4_address"
-#     echo "IPv4 网关: $ipv4_gateway"
-#     # 旧配置删除
-#     nmcli connection delete br-ext 2>/dev/null || true
-#     nmcli connection delete br-int 2>/dev/null || true
-#     nmcli connection delete "${interface}" 2>/dev/null || true
-#     # 公网网桥创建
-#     nmcli connection add type bridge ifname br-ext con-name br-ext
-#     nmcli connection add type bridge-slave ifname "${interface}" con-name "${interface}" master br-ext
-#     nmcli connection modify br-ext +ipv4.addresses 10.255.0.1/16
-#     nmcli connection modify br-ext +ipv4.addresses 169.254.169.254/16
-#     nmcli connection modify br-ext +ipv4.addresses "${ipv4_address}"
-#     nmcli connection modify br-ext ipv4.gateway "${ipv4_gateway}"
-#     nmcli connection modify br-ext ipv4.method manual ipv4.dns 8.8.8.8,1.1.1.1
-#     nmcli connection modify br-ext bridge.stp no
-#     nmcli connection modify br-ext 802-3-ethernet.mtu 1500
-#     nmcli connection up br-ext
-#     # 内网网桥创建 由于单网卡，仅内部通信
-#     nmcli connection add type bridge ifname br-int con-name br-int ipv4.method disabled ipv6.method ignore
-#     nmcli connection modify br-int bridge.stp no
-#     nmcli connection modify br-int 802-3-ethernet.mtu 1500
-#     nmcli connection up br-int
-#     sleep 3
-#     echo "=== 网络状态 ==="
-#     nmcli device status
-# }
-
 rebuild_network() {
-    # 获取物理网卡
     interface=$(ls /sys/class/net/ | grep -E '^(eth|en|eno|ens|enp)' | grep -v lo | head -n 1)
     ipv4_address=$(ip addr show "$interface" | awk '/inet / {print $2}' | head -n 1)
     ipv4_gateway=$(ip route | awk '/default/ {print $3}' | head -n 1)
     echo "检测到的主网卡接口: $interface"
     echo "IPv4 地址: $ipv4_address"
     echo "IPv4 网关: $ipv4_gateway"
-    # 删除旧配置
+    # 旧配置删除
     nmcli connection delete br-ext 2>/dev/null || true
     nmcli connection delete br-int 2>/dev/null || true
     nmcli connection delete "${interface}" 2>/dev/null || true
-    # 创建 br-ext 网桥并绑定物理网卡
+    # 公网网桥创建
     nmcli connection add type bridge ifname br-ext con-name br-ext
     nmcli connection add type bridge-slave ifname "${interface}" con-name "${interface}" master br-ext
     nmcli connection modify br-ext +ipv4.addresses 10.255.0.1/16
@@ -326,27 +293,60 @@ rebuild_network() {
     nmcli connection modify br-ext bridge.stp no
     nmcli connection modify br-ext 802-3-ethernet.mtu 1500
     nmcli connection up br-ext
-    # 创建 br-int 私网桥
-    nmcli connection add type bridge ifname br-int con-name br-int
-    nmcli connection modify br-int ipv4.addresses 10.10.10.1/24
-    nmcli connection modify br-int ipv4.method manual ipv4.dns 8.8.8.8,1.1.1.1
+    # 内网网桥创建 由于单网卡，仅内部通信
+    nmcli connection add type bridge ifname br-int con-name br-int ipv4.method disabled ipv6.method ignore
     nmcli connection modify br-int bridge.stp no
     nmcli connection modify br-int 802-3-ethernet.mtu 1500
     nmcli connection up br-int
-    # 创建 veth 对连接两个网桥
-    ip link add veth-br-ext type veth peer name veth-br-int
-    ip link set veth-br-ext master br-ext
-    ip link set veth-br-int master br-int
-    ip link set veth-br-ext up
-    ip link set veth-br-int up
-    # 启用 IP 转发
-    echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
-    echo "net.ipv4.ip_forward=1" >> /etc/sysctl.d/99-sysctl.conf
-    sysctl -p
+    sleep 3
     echo "=== 网络状态 ==="
     nmcli device status
-    ip a
 }
+
+# rebuild_network() {
+#     # 获取物理网卡
+#     interface=$(ls /sys/class/net/ | grep -E '^(eth|en|eno|ens|enp)' | grep -v lo | head -n 1)
+#     ipv4_address=$(ip addr show "$interface" | awk '/inet / {print $2}' | head -n 1)
+#     ipv4_gateway=$(ip route | awk '/default/ {print $3}' | head -n 1)
+#     echo "检测到的主网卡接口: $interface"
+#     echo "IPv4 地址: $ipv4_address"
+#     echo "IPv4 网关: $ipv4_gateway"
+#     # 删除旧配置
+#     nmcli connection delete br-ext 2>/dev/null || true
+#     nmcli connection delete br-int 2>/dev/null || true
+#     nmcli connection delete "${interface}" 2>/dev/null || true
+#     # 创建 br-ext 网桥并绑定物理网卡
+#     nmcli connection add type bridge ifname br-ext con-name br-ext
+#     nmcli connection add type bridge-slave ifname "${interface}" con-name "${interface}" master br-ext
+#     nmcli connection modify br-ext +ipv4.addresses 10.255.0.1/16
+#     nmcli connection modify br-ext +ipv4.addresses 169.254.169.254/16
+#     nmcli connection modify br-ext +ipv4.addresses "${ipv4_address}"
+#     nmcli connection modify br-ext ipv4.gateway "${ipv4_gateway}"
+#     nmcli connection modify br-ext ipv4.method manual ipv4.dns 8.8.8.8,1.1.1.1
+#     nmcli connection modify br-ext bridge.stp no
+#     nmcli connection modify br-ext 802-3-ethernet.mtu 1500
+#     nmcli connection up br-ext
+#     # 创建 br-int 私网桥
+#     nmcli connection add type bridge ifname br-int con-name br-int
+#     nmcli connection modify br-int ipv4.addresses 10.10.10.1/24
+#     nmcli connection modify br-int ipv4.method manual ipv4.dns 8.8.8.8,1.1.1.1
+#     nmcli connection modify br-int bridge.stp no
+#     nmcli connection modify br-int 802-3-ethernet.mtu 1500
+#     nmcli connection up br-int
+#     # 创建 veth 对连接两个网桥
+#     ip link add veth-br-ext type veth peer name veth-br-int
+#     ip link set veth-br-ext master br-ext
+#     ip link set veth-br-int master br-int
+#     ip link set veth-br-ext up
+#     ip link set veth-br-int up
+#     # 启用 IP 转发
+#     echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+#     echo "net.ipv4.ip_forward=1" >> /etc/sysctl.d/99-sysctl.conf
+#     sysctl -p
+#     echo "=== 网络状态 ==="
+#     nmcli device status
+#     ip a
+# }
 
 libvirt_setup() {
     curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/libvirt.sh | sudo bash
@@ -356,38 +356,38 @@ prometheus_setup() {
     curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/prometheus.sh | sudo bash
 }
 
-# firewall_setup() {
-#     systemctl enable --now firewalld
-#     firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 1 -m physdev --physdev-is-bridged -j ACCEPT # Bridge traffic rule
-#     firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -d 10.255.0.0/16 -j MASQUERADE # Floating IP feature rule
-#     firewall-cmd --permanent --direct --add-rule ipv4 nat PREROUTING 0 -i br-ext '!' -s 169.254.0.0/16 -d 169.254.169.254 -p tcp -m tcp --dport 80 -j DNAT --to-destination $WEBVIRTBACKED_IP:80 # CLoud-init metadata service rule
-#     firewall-cmd --permanent --zone=trusted --add-source=169.254.0.0/16 # Move cloud-init metadata service to trusted zone
-#     firewall-cmd --permanent --zone=trusted --add-interface=br-ext # Move br-ext to trusted zone
-#     firewall-cmd --permanent --zone=trusted --add-interface=br-int # Move br-int to trusted zone
-#     firewall-cmd --zone=public --add-port=1-65535/tcp --permanent
-#     firewall-cmd --zone=public --add-port=1-65535/udp --permanent
-#     firewall-cmd --reload
-# }
-
 firewall_setup() {
     systemctl enable --now firewalld
-    # 桥接网络允许转发
-    firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 1 -m physdev --physdev-is-bridged -j ACCEPT
-    # br-int -> br-ext 的 NAT 转发（私网访问外网）
-    firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.10.10.0/24 -o br-ext -j MASQUERADE
-    # Floating IP 功能
-    firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -d 10.255.0.0/16 -j MASQUERADE
-    # 仅在源地址不是 169.254.0.0/16 时进行 DNAT 重定向
-    firewall-cmd --permanent --direct --add-rule ipv4 nat PREROUTING 0 -i br-ext -d 169.254.169.254 -p tcp --dport 80 -m iprange ! --src-range 169.254.0.0-169.254.255.255 -j DNAT --to-destination "$WEBVIRTBACKED_IP":80
-    # 信任 zone 设置（接口和 metadata 地址）
-    firewall-cmd --permanent --zone=trusted --add-source=169.254.0.0/16
-    firewall-cmd --permanent --zone=trusted --add-interface=br-ext
-    firewall-cmd --permanent --zone=trusted --add-interface=br-int
-    # 放通所有 TCP/UDP 端口
+    firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 1 -m physdev --physdev-is-bridged -j ACCEPT # Bridge traffic rule
+    firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -d 10.255.0.0/16 -j MASQUERADE # Floating IP feature rule
+    firewall-cmd --permanent --direct --add-rule ipv4 nat PREROUTING 0 -i br-ext '!' -s 169.254.0.0/16 -d 169.254.169.254 -p tcp -m tcp --dport 80 -j DNAT --to-destination $WEBVIRTBACKED_IP:80 # CLoud-init metadata service rule
+    firewall-cmd --permanent --zone=trusted --add-source=169.254.0.0/16 # Move cloud-init metadata service to trusted zone
+    firewall-cmd --permanent --zone=trusted --add-interface=br-ext # Move br-ext to trusted zone
+    firewall-cmd --permanent --zone=trusted --add-interface=br-int # Move br-int to trusted zone
     firewall-cmd --zone=public --add-port=1-65535/tcp --permanent
     firewall-cmd --zone=public --add-port=1-65535/udp --permanent
     firewall-cmd --reload
 }
+
+# firewall_setup() {
+#     systemctl enable --now firewalld
+#     # 桥接网络允许转发
+#     firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 1 -m physdev --physdev-is-bridged -j ACCEPT
+#     # br-int -> br-ext 的 NAT 转发（私网访问外网）
+#     firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.10.10.0/24 -o br-ext -j MASQUERADE
+#     # Floating IP 功能
+#     firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -d 10.255.0.0/16 -j MASQUERADE
+#     # 仅在源地址不是 169.254.0.0/16 时进行 DNAT 重定向
+#     firewall-cmd --permanent --direct --add-rule ipv4 nat PREROUTING 0 -i br-ext -d 169.254.169.254 -p tcp --dport 80 -m iprange ! --src-range 169.254.0.0-169.254.255.255 -j DNAT --to-destination "$WEBVIRTBACKED_IP":80
+#     # 信任 zone 设置（接口和 metadata 地址）
+#     firewall-cmd --permanent --zone=trusted --add-source=169.254.0.0/16
+#     firewall-cmd --permanent --zone=trusted --add-interface=br-ext
+#     firewall-cmd --permanent --zone=trusted --add-interface=br-int
+#     # 放通所有 TCP/UDP 端口
+#     firewall-cmd --zone=public --add-port=1-65535/tcp --permanent
+#     firewall-cmd --zone=public --add-port=1-65535/udp --permanent
+#     firewall-cmd --reload
+# }
 
 computer_setup() {
     curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/install.sh | sudo bash
