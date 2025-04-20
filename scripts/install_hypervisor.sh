@@ -377,9 +377,8 @@ firewall_setup() {
     firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.10.10.0/24 -o br-ext -j MASQUERADE
     # Floating IP 功能
     firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -d 10.255.0.0/16 -j MASQUERADE
-    # cloud-init metadata service DNAT 重定向，排除源地址为 169.254.0.0/16
-    firewall-cmd --permanent --add-rich-rule="rule family='ipv4' source address='!169.254.0.0/16' destination address='169.254.169.254' port port='80' protocol='tcp' accept"
-    firewall-cmd --permanent --direct --add-rule ipv4 nat PREROUTING 0 -i br-ext -s 169.254.0.0/16 -d 169.254.169.254 -p tcp --dport 80 -j DNAT --to-destination "$WEBVIRTBACKED_IP":80
+    # 仅在源地址不是 169.254.0.0/16 时进行 DNAT 重定向
+    firewall-cmd --permanent --direct --add-rule ipv4 nat PREROUTING 0 -i br-ext -d 169.254.169.254 -p tcp --dport 80 -m iprange ! --src-range 169.254.0.0-169.254.255.255 -j DNAT --to-destination "$WEBVIRTBACKED_IP":80
     # 信任 zone 设置（接口和 metadata 地址）
     firewall-cmd --permanent --zone=trusted --add-source=169.254.0.0/16
     firewall-cmd --permanent --zone=trusted --add-interface=br-ext
