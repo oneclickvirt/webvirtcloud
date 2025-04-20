@@ -345,6 +345,27 @@ computer_setup() {
     curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/update.sh | sudo bash
 }
 
+create_veth_and_setup_cron() {
+    SCRIPT_DIR="/usr/local/bin"
+    SCRIPT_FILE="${SCRIPT_DIR}/setup-veth.sh"
+    echo "创建设置 veth 接口的脚本..."
+    cat << 'EOF' > "${SCRIPT_FILE}"
+#!/bin/bash
+ip link add veth-br-ext type veth peer name veth-br-int
+ip link set veth-br-ext master br-ext
+ip link set veth-br-int master br-int
+ip link set veth-br-ext up
+ip link set veth-br-int up
+nmcli device set veth-br-ext managed yes
+nmcli device set veth-br-int managed yes
+EOF
+    chmod +x "${SCRIPT_FILE}"
+    echo "添加定时任务 @reboot..."
+    (crontab -l 2>/dev/null; echo "@reboot ${SCRIPT_FILE}") | crontab -
+    echo "当前 crontab 设置："
+    crontab -l
+}
+
 extract_webvirtcloud_token() {
     local config_file="/etc/webvirtcompute/webvirtcompute.ini"
     if [[ -f "$config_file" ]]; then
@@ -384,6 +405,7 @@ main() {
     prometheus_setup
     firewall_setup
     computer_setup
+    create_veth_and_setup_cron
     extract_webvirtcloud_token
 }
 
