@@ -327,6 +327,8 @@ rebuild_network() {
     nmcli device set veth-br-ext managed yes
     nmcli device set veth-br-int managed yes
     sleep 3
+    systemctl restart NetworkManager
+    sleep 3
     echo "=== 网络状态 ==="
     nmcli device status
     ip a
