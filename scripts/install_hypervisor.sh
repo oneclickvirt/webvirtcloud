@@ -1,6 +1,6 @@
 #!/bin/bash
 # https://github.com/oneclickvirt/webvirtcloud
-# 2025.04.20
+# 2025.04.21
 
 ###########################################
 # 初始化和环境变量设置
@@ -290,8 +290,6 @@ rebuild_network() {
     nmcli connection modify br-int bridge.stp no
     nmcli connection modify br-int 802-3-ethernet.mtu 1500
     nmcli connection up br-int
-    sleep 3
-    systemctl restart NetworkManager
     sleep 3
     echo "=== 网络状态 ==="
     nmcli device status
