@@ -1,6 +1,6 @@
 #!/bin/bash
 # https://github.com/oneclickvirt/webvirtcloud
-# 2025.04.21
+# 2025.04.22
 
 ###########################################
 # 初始化和环境变量设置
