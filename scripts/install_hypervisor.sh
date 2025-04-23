@@ -273,7 +273,6 @@ rebuild_network() {
     # 旧配置删除
     nmcli connection delete br-ext 2>/dev/null || true
     nmcli connection delete br-int 2>/dev/null || true
-    nmcli connection delete "${interface}" 2>/dev/null || true
     # 公网网桥创建
     nmcli connection add type bridge ifname br-ext con-name br-ext
     nmcli connection add type bridge-slave ifname "${interface}" con-name "${interface}" master br-ext
@@ -308,7 +307,7 @@ firewall_setup() {
     firewall-cmd --permanent --zone=trusted --add-interface=br-int # Move br-int to trusted zone
     firewall-cmd --zone=public --add-port=1-65535/tcp --permanent
     firewall-cmd --zone=public --add-port=1-65535/udp --permanent
-    firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -s 192.168.33.0/24 -o ens3 -j MASQUERADE
+    firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -s 192.168.33.0/24 -o "${interface}" -j MASQUERADE
     firewall-cmd --reload
 }
 
