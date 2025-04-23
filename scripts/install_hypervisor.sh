@@ -279,10 +279,9 @@ rebuild_network() {
     nmcli connection add type bridge-slave ifname "${interface}" con-name "${interface}" master br-ext
     nmcli connection modify br-ext +ipv4.addresses 10.255.0.1/16
     nmcli connection modify br-ext +ipv4.addresses 169.254.169.254/16
-    # nmcli connection modify br-ext +ipv4.addresses 192.168.33.10/24
-    nmcli connection modify br-ext +ipv4.addresses 192.168.33.1/24
     nmcli connection modify br-ext +ipv4.addresses "${ipv4_address}"
     nmcli connection modify br-ext ipv4.gateway "${ipv4_gateway}"
+    nmcli connection modify br-ext +ipv4.addresses 192.168.33.1/24
     nmcli connection modify br-ext ipv4.method manual ipv4.dns 8.8.8.8,1.1.1.1
     nmcli connection modify br-ext bridge.stp no
     nmcli connection modify br-ext 802-3-ethernet.mtu 1500
@@ -309,6 +308,7 @@ firewall_setup() {
     firewall-cmd --permanent --zone=trusted --add-interface=br-int # Move br-int to trusted zone
     firewall-cmd --zone=public --add-port=1-65535/tcp --permanent
     firewall-cmd --zone=public --add-port=1-65535/udp --permanent
+    firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -s 192.168.33.0/24 -o ens3 -j MASQUERADE
     firewall-cmd --reload
 }
 
