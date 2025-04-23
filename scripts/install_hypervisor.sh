@@ -279,6 +279,8 @@ rebuild_network() {
     nmcli connection add type bridge-slave ifname "${interface}" con-name "${interface}" master br-ext
     nmcli connection modify br-ext +ipv4.addresses 10.255.0.1/16
     nmcli connection modify br-ext +ipv4.addresses 169.254.169.254/16
+    # nmcli connection modify br-ext +ipv4.addresses 192.168.33.10/24
+    nmcli connection modify br-ext +ipv4.addresses 192.168.33.1/24
     nmcli connection modify br-ext +ipv4.addresses "${ipv4_address}"
     nmcli connection modify br-ext ipv4.gateway "${ipv4_gateway}"
     nmcli connection modify br-ext ipv4.method manual ipv4.dns 8.8.8.8,1.1.1.1
