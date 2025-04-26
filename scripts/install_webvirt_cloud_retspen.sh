@@ -192,6 +192,8 @@ clone_webvirtcloud() {
     cd webvirtcloud
     cp webvirtcloud/settings.py.template webvirtcloud/settings.py
     sed -i "s/SECRET_KEY = \"\"/SECRET_KEY = \"${secret_key}\"/g" webvirtcloud/settings.py
+    # https://github.com/retspen/webvirtcloud/issues/630
+    sed -i "s|\(\['http://localhost'\)|\1, 'http://${IPV4}'|" webvirtcloud/settings.py
     cp conf/supervisor/webvirtcloud.conf /etc/supervisor/conf.d/
     sed -i "s/user=www-data/user=${webvirtmgr_user}/g" /etc/supervisor/conf.d/webvirtcloud.conf
     mkdir -p /srv
