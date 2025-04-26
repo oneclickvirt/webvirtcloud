@@ -226,6 +226,9 @@ setup_virtualenv() {
             sed -i 's/^django-bootstrap-icons==[0-9.]*$/django-bootstrap-icons==0.8.7/' conf/requirements.txt
             sed -i 's/^django-qr-code==[0-9.]*$/django-qr-code==4.0.1/' conf/requirements.txt
             sed -i 's/^django-auth-ldap==[0-9.]*$/django-auth-ldap==5.0.0/' conf/requirements.txt
+            sed -i 's/^qrcode==[0-9.]*$/qrcode==7.4.2/' conf/requirements.txt
+            sed -i 's/^whitenoise==[0-9.]*$/whitenoise==6.7.0/' conf/requirements.txt
+            sed -i 's/^zipp==[0-9.]*$/zipp==3.20.2/' conf/requirements.txt
         else
             echo "Ubuntu $ubuntu_version detected, no patch needed."
         fi
