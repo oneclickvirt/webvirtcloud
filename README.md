@@ -4,6 +4,10 @@
 
 # 说明
 
+两个项目不是同样的项目，只是项目名称相同。
+
+## https://github.com/webvirtcloud/webvirtcloud
+
 中文：
 
 https://www.spiritlhl.net/incomplete/webvirtcloud.html
@@ -11,3 +15,13 @@ https://www.spiritlhl.net/incomplete/webvirtcloud.html
 English:
 
 https://www.spiritlhl.net/en/incomplete/webvirtcloud.html
+
+## https://github.com/retspen/webvirtcloud
+
+中文：
+
+https://www.spiritlhl.net/incomplete/webvirtcloud_retspen.html
+
+English:
+
+https://www.spiritlhl.net/en/incomplete/webvirtcloud_retspen.html

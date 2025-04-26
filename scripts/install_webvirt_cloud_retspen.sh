@@ -1,5 +1,6 @@
 #!/bin/bash
-# retspen/webvirtcloud 一键安装脚本 - 优化版
+# https://github.com/oneclickvirt/webvirtcloud
+# For https://github.com/retspen/webvirtcloud
 # 2025.04.26
 
 ###########################################
