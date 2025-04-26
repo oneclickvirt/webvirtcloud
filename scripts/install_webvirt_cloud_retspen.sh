@@ -135,7 +135,7 @@ install_dependencies() {
         "git" "virtualenv" "python3-virtualenv" "supervisor"
         "libsasl2-modules" "wget" "curl" "nginx"
         "qemu-kvm" "libvirt-daemon-system" "libvirt-clients" "bridge-utils" "virt-manager" "sasl2-bin"
-        "libldap2-dev" "libsasl2-dev"
+        "libldap2-dev" "libsasl2-dev" "lsb_release"
     )
     for pkg in "${packages[@]}"; do
         _blue "正在安装: $pkg"
@@ -217,6 +217,19 @@ setup_virtualenv() {
     fi
     _green "✓ 虚拟环境创建成功"
     _yellow "安装Python依赖..."
+    ubuntu_version=$(lsb_release -rs)
+    os_name=$(lsb_release -si)
+    if [ "$os_name" == "Ubuntu" ]; then
+        if dpkg --compare-versions "$ubuntu_version" le "22.04"; then
+            echo "Detected Ubuntu $ubuntu_version, patching conf/requirements.txt..."
+            sed -i 's/^django_bootstrap5==[0-9.]*$/django_bootstrap5==24.3/' conf/requirements.txt
+            sed -i 's/^django-bootstrap-icons==[0-9.]*$/django-bootstrap-icons==0.8.7/' conf/requirements.txt
+            sed -i 's/^django-qr-code==[0-9.]*$/django-qr-code==4.0.1/' conf/requirements.txt
+            sed -i 's/^django-auth-ldap==[0-9.]*$/django-auth-ldap==5.0.0/' conf/requirements.txt
+        else
+            echo "Ubuntu $ubuntu_version detected, no patch needed."
+        fi
+    fi
     source venv/bin/activate
     pip install -r conf/requirements.txt
     if [ $? -ne 0 ]; then
