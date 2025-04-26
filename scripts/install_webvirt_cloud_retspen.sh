@@ -77,15 +77,12 @@ check_update() {
 # 获取IP地址
 get_ip_address() {
     IPV4=$(ip -4 addr show | grep global | awk '{print $2}' | cut -d '/' -f1 | head -n 1)
-    # 检查是否为私有IP
     local ip_parts
     IFS='.' read -r -a ip_parts <<<"$IPV4"
-    # 如果是内网IP，尝试获取公网IP
     if [[ ${ip_parts[0]} -eq 10 ]] ||
         [[ ${ip_parts[0]} -eq 172 && ${ip_parts[1]} -ge 16 && ${ip_parts[1]} -le 31 ]] ||
         [[ ${ip_parts[0]} -eq 192 && ${ip_parts[1]} -eq 168 ]] ||
         [[ ${ip_parts[0]} -eq 127 ]]; then
-
         local API_NET=("ipv4.ip.sb" "ipget.net" "ip.ping0.cc" "https://ip4.seeip.org")
         for p in "${API_NET[@]}"; do
             response=$(curl -s4m8 "$p")
@@ -387,9 +384,9 @@ main() {
     setup_user
     cdn_urls=("https://cdn0.spiritlhl.top/" "http://cdn1.spiritlhl.net/" "http://cdn2.spiritlhl.net/" "http://cdn3.spiritlhl.net/" "http://cdn4.spiritlhl.net/")
     check_cdn_file
+    get_ip_address
     generate_secret_key
     clone_webvirtcloud
-    get_ip_address
     setup_virtualenv
     configure_libvirt
     configure_gstfsd
