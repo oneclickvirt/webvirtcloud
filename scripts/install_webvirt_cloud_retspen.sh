@@ -352,7 +352,6 @@ configure_firewall() {
 }
 
 show_completion() {
-    get_ip_address
     _green "WebVirtCloud 安装完成!"
     _yellow "访问地址: http://$IPV4"
     _yellow "默认用户名: admin"
@@ -370,6 +369,7 @@ main() {
     check_cdn_file
     generate_secret_key
     clone_webvirtcloud
+    get_ip_address
     setup_virtualenv
     configure_libvirt
     configure_gstfsd
