@@ -52,6 +52,13 @@ init_system_vars() {
     done
 }
 
+statistics_of_run_times() {
+    COUNT=$(curl -4 -ksm1 "https://hits.spiritlhl.net/webvirtcloud?action=hit&title=Hits&title_bg=%23555555&count_bg=%2324dde1&edge_flat=false" 2>/dev/null ||
+        curl -6 -ksm1 "https://hits.spiritlhl.net/webvirtcloud?action=hit&title=Hits&title_bg=%23555555&count_bg=%2324dde1&edge_flat=false" 2>/dev/null)
+    TODAY=$(echo "$COUNT" | grep -oP '"daily":\s*[0-9]+' | sed 's/"daily":\s*\([0-9]*\)/\1/')
+    TOTAL=$(echo "$COUNT" | grep -oP '"total":\s*[0-9]+' | sed 's/"total":\s*\([0-9]*\)/\1/')
+}
+
 ###########################################
 # 辅助函数模块
 ###########################################
@@ -75,23 +82,32 @@ check_update() {
             distro="debian"
             debian_ver=$(grep VERSION= /etc/os-release | grep -oE '[0-9]+' | head -n1)
             case "$debian_ver" in
-                10) codename="buster" ; is_archive=true ;;
-                9)  codename="stretch"; is_archive=true ;;
-                8)  codename="jessie" ; is_archive=true ;;
+            10)
+                codename="buster"
+                is_archive=true
+                ;;
+            9)
+                codename="stretch"
+                is_archive=true
+                ;;
+            8)
+                codename="jessie"
+                is_archive=true
+                ;;
             esac
         elif grep -qi ubuntu /etc/os-release; then
             distro="ubuntu"
             codename=$(grep VERSION_CODENAME /etc/os-release | cut -d= -f2)
             case "$codename" in
-                xenial|bionic|eoan|groovy|artful|zesty|yakkety|vivid|wily|utopic)
-                    is_archive=true
-                    ;;
+            xenial | bionic | eoan | groovy | artful | zesty | yakkety | vivid | wily | utopic)
+                is_archive=true
+                ;;
             esac
         fi
         # 如为归档版本，则替换为归档源
         if [[ "$is_archive" == true ]]; then
             _yellow "检测到归档系统：$distro $codename，请升级系统，正在退出程序"
-             1
+            1
         fi
         # 更新包列表
         temp_file_apt_fix=$(mktemp)
@@ -156,6 +172,28 @@ check_ipv4() {
     export IPV4
 }
 
+check_cdn() {
+    local o_url=$1
+    local shuffled_cdn_urls=($(shuf -e "${cdn_urls[@]}")) # 打乱数组顺序
+    for cdn_url in "${shuffled_cdn_urls[@]}"; do
+        if curl -sL -k "$cdn_url$o_url" --max-time 6 | grep -q "success" >/dev/null 2>&1; then
+            export cdn_success_url="$cdn_url"
+            return
+        fi
+        sleep 0.5
+    done
+    export cdn_success_url=""
+}
+
+check_cdn_file() {
+    check_cdn "https://raw.githubusercontent.com/spiritLHLS/ecs/main/back/test"
+    if [ -n "$cdn_success_url" ]; then
+        _yellow "CDN available, using CDN"
+    else
+        _yellow "No CDN available, no use CDN"
+    fi
+}
+
 ###########################################
 # 系统检测模块
 ###########################################
@@ -164,7 +202,7 @@ check_ipv4() {
 check_system_compatibility() {
     if [[ "${RELEASE[int]}" != "Debian" && "${RELEASE[int]}" != "Ubuntu" && "${RELEASE[int]}" != "CentOS" ]]; then
         _red "不支持当前系统: ${RELEASE[int]}"
-         1
+        1
     fi
 }
 
@@ -208,10 +246,6 @@ install_basic_dependencies() {
         _yellow "安装 firewalld"
         ${PACKAGE_INSTALL[int]} firewalld
     fi
-    if ! command -v firewalld >/dev/null 2>&1; then
-        _yellow "安装 firewalld"
-        ${PACKAGE_INSTALL[int]} firewalld
-    fi
 }
 
 install_with_ubuntu() {
@@ -229,7 +263,7 @@ network:
 EOF
     else
         sudo cp "$FILE" "$BACKUP_FILE"
-        echo -e "\nnetwork:\n  version: 2\n  renderer: NetworkManager" | sudo tee -a "$FILE" > /dev/null
+        echo -e "\nnetwork:\n  version: 2\n  renderer: NetworkManager" | sudo tee -a "$FILE" >/dev/null
     fi
     sudo netplan apply
 }
@@ -244,7 +278,7 @@ install_with_debian() {
             echo "plugins=ifupdown,keyfile"
             echo "[ifupdown]"
             echo "managed=true"
-        } | sudo tee "$CONF_FILE" > /dev/null
+        } | sudo tee "$CONF_FILE" >/dev/null
         return 0
     fi
     sudo cp "$CONF_FILE" "$BACKUP_FILE"
@@ -259,7 +293,7 @@ install_with_debian() {
             echo ""
             echo "[ifupdown]"
             echo "managed=true"
-        } | sudo tee -a "$CONF_FILE" > /dev/null
+        } | sudo tee -a "$CONF_FILE" >/dev/null
     fi
 }
 
@@ -299,12 +333,12 @@ rebuild_network() {
 
 firewall_setup() {
     systemctl enable --now firewalld
-    firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 1 -m physdev --physdev-is-bridged -j ACCEPT # Bridge traffic rule
-    firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -d 10.255.0.0/16 -j MASQUERADE # Floating IP feature rule
+    firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 1 -m physdev --physdev-is-bridged -j ACCEPT                                                                                 # Bridge traffic rule
+    firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -d 10.255.0.0/16 -j MASQUERADE                                                                                           # Floating IP feature rule
     firewall-cmd --permanent --direct --add-rule ipv4 nat PREROUTING 0 -i br-ext '!' -s 169.254.0.0/16 -d 169.254.169.254 -p tcp -m tcp --dport 80 -j DNAT --to-destination $WEBVIRTBACKED_IP:80 # CLoud-init metadata service rule
-    firewall-cmd --permanent --zone=trusted --add-source=169.254.0.0/16 # Move cloud-init metadata service to trusted zone
-    firewall-cmd --permanent --zone=trusted --add-interface=br-ext # Move br-ext to trusted zone
-    firewall-cmd --permanent --zone=trusted --add-interface=br-int # Move br-int to trusted zone
+    firewall-cmd --permanent --zone=trusted --add-source=169.254.0.0/16                                                                                                                          # Move cloud-init metadata service to trusted zone
+    firewall-cmd --permanent --zone=trusted --add-interface=br-ext                                                                                                                               # Move br-ext to trusted zone
+    firewall-cmd --permanent --zone=trusted --add-interface=br-int                                                                                                                               # Move br-int to trusted zone
     firewall-cmd --zone=public --add-port=1-65535/tcp --permanent
     firewall-cmd --zone=public --add-port=1-65535/udp --permanent
     firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -s 192.168.33.0/24 -o "${interface}" -j MASQUERADE
@@ -312,16 +346,16 @@ firewall_setup() {
 }
 
 libvirt_setup() {
-    curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/libvirt.sh | sudo bash
+    curl -fsSL "${cdn_success_url}https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/libvirt.sh" | sudo bash
 }
 
 prometheus_setup() {
-    curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/prometheus.sh | sudo bash
+    curl -fsSL "${cdn_success_url}https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/prometheus.sh" | sudo bash
 }
 
 computer_setup() {
-    curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/install.sh | sudo bash
-    curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/update.sh | sudo bash
+    curl -fsSL "${cdn_success_url}https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/install.sh" | sudo bash
+    curl -fsSL "${cdn_success_url}https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/update.sh" | sudo bash
 }
 
 extract_webvirtcloud_token() {
@@ -352,6 +386,10 @@ main() {
     init_system_vars
     check_system_compatibility
     install_basic_dependencies
+    cdn_urls=("https://cdn0.spiritlhl.top/" "http://cdn1.spiritlhl.net/" "http://cdn2.spiritlhl.net/" "http://cdn3.spiritlhl.net/" "http://cdn4.spiritlhl.net/")
+    check_cdn_file
+    statistics_of_run_times
+    _green "脚本当天运行次数:${TODAY}，累计运行次数:${TOTAL}"
     check_ipv4
     if [[ "${RELEASE[int]}" == "Ubuntu" ]]; then
         install_with_ubuntu

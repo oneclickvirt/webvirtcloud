@@ -50,6 +50,13 @@ init_system_vars() {
     done
 }
 
+statistics_of_run_times() {
+    COUNT=$(curl -4 -ksm1 "https://hits.spiritlhl.net/webvirtcloud?action=hit&title=Hits&title_bg=%23555555&count_bg=%2324dde1&edge_flat=false" 2>/dev/null ||
+        curl -6 -ksm1 "https://hits.spiritlhl.net/webvirtcloud?action=hit&title=Hits&title_bg=%23555555&count_bg=%2324dde1&edge_flat=false" 2>/dev/null)
+    TODAY=$(echo "$COUNT" | grep -oP '"daily":\s*[0-9]+' | sed 's/"daily":\s*\([0-9]*\)/\1/')
+    TOTAL=$(echo "$COUNT" | grep -oP '"total":\s*[0-9]+' | sed 's/"total":\s*\([0-9]*\)/\1/')
+}
+
 ###########################################
 # 辅助函数模块
 ###########################################
@@ -73,17 +80,26 @@ check_update() {
             distro="debian"
             debian_ver=$(grep VERSION= /etc/os-release | grep -oE '[0-9]+' | head -n1)
             case "$debian_ver" in
-                10) codename="buster" ; is_archive=true ;;
-                9)  codename="stretch"; is_archive=true ;;
-                8)  codename="jessie" ; is_archive=true ;;
+            10)
+                codename="buster"
+                is_archive=true
+                ;;
+            9)
+                codename="stretch"
+                is_archive=true
+                ;;
+            8)
+                codename="jessie"
+                is_archive=true
+                ;;
             esac
         elif grep -qi ubuntu /etc/os-release; then
             distro="ubuntu"
             codename=$(grep VERSION_CODENAME /etc/os-release | cut -d= -f2)
             case "$codename" in
-                xenial|bionic|eoan|groovy|artful|zesty|yakkety|vivid|wily|utopic)
-                    is_archive=true
-                    ;;
+            xenial | bionic | eoan | groovy | artful | zesty | yakkety | vivid | wily | utopic)
+                is_archive=true
+                ;;
             esac
         fi
         # 如为归档版本，则替换为归档源
@@ -152,6 +168,28 @@ check_ipv4() {
         done
     fi
     export IPV4
+}
+
+check_cdn() {
+    local o_url=$1
+    local shuffled_cdn_urls=($(shuf -e "${cdn_urls[@]}")) # 打乱数组顺序
+    for cdn_url in "${shuffled_cdn_urls[@]}"; do
+        if curl -sL -k "$cdn_url$o_url" --max-time 6 | grep -q "success" >/dev/null 2>&1; then
+            export cdn_success_url="$cdn_url"
+            return
+        fi
+        sleep 0.5
+    done
+    export cdn_success_url=""
+}
+
+check_cdn_file() {
+    check_cdn "https://raw.githubusercontent.com/spiritLHLS/ecs/main/back/test"
+    if [ -n "$cdn_success_url" ]; then
+        _yellow "CDN available, using CDN"
+    else
+        _yellow "No CDN available, no use CDN"
+    fi
 }
 
 ###########################################
@@ -246,12 +284,12 @@ install_docker_and_compose() {
                 --ignore-backup-tips | awk '/脚本运行完毕，更多使用教程详见官网/ {exit} {print}'
         else
             bash <(curl -sSL https://gitee.com/SuperManito/LinuxMirrors/raw/main/DockerInstallation.sh) \
-              --source mirrors.tencent.com/docker-ce \
-              --source-registry registry.hub.docker.com \
-              --protocol http \
-              --install-latest true \
-              --close-firewall true \
-              --ignore-backup-tips | awk '/脚本运行完毕，更多使用教程详见官网/ {exit} {print}'
+                --source mirrors.tencent.com/docker-ce \
+                --source-registry registry.hub.docker.com \
+                --protocol http \
+                --install-latest true \
+                --close-firewall true \
+                --ignore-backup-tips | awk '/脚本运行完毕，更多使用教程详见官网/ {exit} {print}'
         fi
     fi
     if ! command -v docker-compose >/dev/null 2>&1; then
@@ -277,9 +315,9 @@ install_controller() {
         rm -rf webvirtcloud
     fi
     if [[ -z "${CN}" || "${CN}" != true ]]; then
-        git clone https://github.com/webvirtcloud/webvirtcloud.git
+        git clone "${cdn_success_url}https://github.com/webvirtcloud/webvirtcloud.git"
     else
-        wget https://cdn.spiritlhl.net/https://github.com/webvirtcloud/webvirtcloud/archive/refs/heads/master.zip
+        wget "${cdn_success_url}https://github.com/webvirtcloud/webvirtcloud/archive/refs/heads/master.zip"
         unzip master.zip
         mv webvirtcloud-master webvirtcloud
         rm -f master.zip
@@ -298,7 +336,7 @@ install_controller() {
     mkdir -p .caddy/certs
     openssl req -x509 -newkey rsa:4096 -keyout .caddy/certs/key.pem -out .caddy/certs/cert.pem -days 365 -nodes -subj "/CN=${DOMAIN_NAME}"
     cp Caddyfile.selfsigned Caddyfile
-    cat > env.local <<EOF
+    cat >env.local <<EOF
 DOMAIN_NAME=${DOMAIN_NAME}
 VITE_DISPLAY_PRICES=true
 VITE_LOADBALANCER=true
@@ -334,6 +372,10 @@ main() {
     _green "当前IP地址: $IPV4"
     check_china
     install_basic_dependencies
+    cdn_urls=("https://cdn0.spiritlhl.top/" "http://cdn1.spiritlhl.net/" "http://cdn2.spiritlhl.net/" "http://cdn3.spiritlhl.net/" "http://cdn4.spiritlhl.net/")
+    check_cdn_file
+    statistics_of_run_times
+    _green "脚本当天运行次数:${TODAY}，累计运行次数:${TOTAL}"
     _yellow "准备安装WebVirtCloud控制器..."
     install_docker_and_compose
     install_controller
