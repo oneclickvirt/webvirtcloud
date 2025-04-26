@@ -135,7 +135,7 @@ install_dependencies() {
         "git" "virtualenv" "python3-virtualenv" "supervisor"
         "libsasl2-modules" "wget" "curl" "nginx"
         "qemu-kvm" "libvirt-daemon-system" "libvirt-clients" "bridge-utils" "virt-manager" "sasl2-bin"
-        "libldap2-dev" "libsasl2-dev" "lsb_release"
+        "libldap2-dev" "libsasl2-dev" "lsb-release"
     )
     for pkg in "${packages[@]}"; do
         _blue "正在安装: $pkg"
