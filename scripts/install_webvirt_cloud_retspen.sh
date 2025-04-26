@@ -229,12 +229,16 @@ setup_virtualenv() {
             sed -i 's/^qrcode==[0-9.]*$/qrcode==7.4.2/' conf/requirements.txt
             sed -i 's/^whitenoise==[0-9.]*$/whitenoise==6.7.0/' conf/requirements.txt
             sed -i 's/^zipp==[0-9.]*$/zipp==3.20.2/' conf/requirements.txt
+            source venv/bin/activate
+            pip install -r conf/requirements.txt
+            # https://github.com/retspen/webvirtcloud/issues/641
+            sed -i 's/^import zoneinfo$/from backports.zoneinfo import ZoneInfo as zoneinfo/' /srv/webvirtcloud/venv/lib/python3.8/site-packages/qr_code/qrcode/utils.py
         else
             echo "Ubuntu $ubuntu_version detected, no patch needed."
+            source venv/bin/activate
+            pip install -r conf/requirements.txt
         fi
     fi
-    source venv/bin/activate
-    pip install -r conf/requirements.txt
     if [ $? -ne 0 ]; then
         _red "✗ Python依赖安装失败"
         exit 1
