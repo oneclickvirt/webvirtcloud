@@ -119,6 +119,28 @@ check_cdn_file() {
 # 安装流程
 ###########################################
 
+# 从源码安装Python 3.10
+install_python310() {
+    _yellow "正在从源码安装Python 3.10..."
+    apt-get install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev \
+        libnss3-dev libssl-dev libreadline-dev libffi-dev wget
+    cd /tmp
+    wget https://www.python.org/ftp/python/3.10.13/Python-3.10.13.tgz
+    tar -xf Python-3.10.13.tgz
+    cd Python-3.10.13
+    ./configure --enable-optimizations
+    make -j $(nproc)
+    make altinstall
+    ln -sf /usr/local/bin/python3.10 /usr/local/bin/python310
+    ln -sf /usr/local/bin/pip3.10 /usr/local/bin/pip310
+    if python3.10 --version; then
+        _green "✓ Python 3.10 安装成功"
+    else
+        _red "✗ Python 3.10 安装失败"
+        exit 1
+    fi
+}
+
 # 安装依赖包
 install_dependencies() {
     _yellow "开始安装依赖..."
@@ -205,7 +227,8 @@ clone_webvirtcloud() {
 setup_virtualenv() {
     _yellow "设置Python虚拟环境..."
     cd /srv/webvirtcloud
-    virtualenv -p python3 venv
+    # virtualenv -p python3 venv
+    /usr/local/bin/python3.10 -m venv venv
     if [ $? -ne 0 ]; then
         _red "✗ 虚拟环境创建失败"
         exit 1
@@ -382,6 +405,7 @@ main() {
     check_root
     check_os
     install_dependencies
+    install_python310
     setup_user
     cdn_urls=("https://cdn0.spiritlhl.top/" "http://cdn1.spiritlhl.net/" "http://cdn2.spiritlhl.net/" "http://cdn3.spiritlhl.net/" "http://cdn4.spiritlhl.net/")
     check_cdn_file
