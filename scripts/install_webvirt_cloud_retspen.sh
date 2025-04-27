@@ -119,6 +119,24 @@ check_cdn_file() {
 # 安装流程
 ###########################################
 
+check_python_version() {
+    _yellow "检查Python版本..."
+    if command -v python3 >/dev/null 2>&1; then
+        python_version=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
+        _green "系统Python版本: $python_version"
+        if dpkg --compare-versions "$python_version" ge "3.10"; then
+            _green "✓ 系统Python版本已满足要求，跳过Python 3.10安装"
+            return 0
+        else
+            _yellow "系统Python版本低于3.10，需要安装Python 3.10"
+            return 1
+        fi
+    else
+        _yellow "未检测到Python3，需要安装Python 3.10"
+        return 1
+    fi
+}
+
 # 从源码安装Python 3.10
 install_python310() {
     _yellow "正在从源码安装Python 3.10..."
@@ -227,8 +245,14 @@ clone_webvirtcloud() {
 setup_virtualenv() {
     _yellow "设置Python虚拟环境..."
     cd /srv/webvirtcloud
-    # virtualenv -p python3 venv
-    /usr/local/bin/python3.10 -m venv venv
+    if command -v python3.10 >/dev/null 2>&1 || command -v /usr/local/bin/python3.10 >/dev/null 2>&1; then
+        _green "使用Python 3.10创建虚拟环境"
+        python_cmd=$(command -v python3.10 || command -v /usr/local/bin/python3.10)
+        $python_cmd -m venv venv
+    else
+        _green "使用系统Python创建虚拟环境"
+        virtualenv -p python3 venv
+    fi
     if [ $? -ne 0 ]; then
         _red "✗ 虚拟环境创建失败"
         exit 1
@@ -237,29 +261,8 @@ setup_virtualenv() {
     _yellow "安装Python依赖..."
     ubuntu_version=$(lsb_release -rs)
     os_name=$(lsb_release -si)
-    if [ "$os_name" == "Ubuntu" ]; then
-        if dpkg --compare-versions "$ubuntu_version" le "22.04"; then
-            echo "Detected Ubuntu $ubuntu_version, patching conf/requirements.txt..."
-            sed -i 's/^django_bootstrap5==[0-9.]*$/django_bootstrap5==24.3/' conf/requirements.txt
-            sed -i 's/^django-bootstrap-icons==[0-9.]*$/django-bootstrap-icons==0.8.7/' conf/requirements.txt
-            sed -i 's/^django-qr-code==[0-9.]*$/django-qr-code==4.0.1/' conf/requirements.txt
-            sed -i 's/^django-auth-ldap==[0-9.]*$/django-auth-ldap==5.0.0/' conf/requirements.txt
-            sed -i 's/^qrcode==[0-9.]*$/qrcode==7.4.2/' conf/requirements.txt
-            sed -i 's/^whitenoise==[0-9.]*$/whitenoise==6.7.0/' conf/requirements.txt
-            sed -i 's/^zipp==[0-9.]*$/zipp==3.20.2/' conf/requirements.txt
-            source venv/bin/activate
-            pip install -r conf/requirements.txt
-            # https://github.com/retspen/webvirtcloud/issues/641
-            sed -i 's/^import zoneinfo$/from backports.zoneinfo import ZoneInfo as zoneinfo/' /srv/webvirtcloud/venv/lib/python3.8/site-packages/qr_code/qrcode/utils.py
-        else
-            echo "Ubuntu $ubuntu_version detected, no patch needed."
-            source venv/bin/activate
-            pip install -r conf/requirements.txt
-        fi
-    else
-        source venv/bin/activate
-        pip install -r conf/requirements.txt
-    fi
+    source venv/bin/activate
+    pip install -r conf/requirements.txt
     if [ $? -ne 0 ]; then
         _red "✗ Python依赖安装失败"
         exit 1
@@ -405,7 +408,9 @@ main() {
     check_root
     check_os
     install_dependencies
-    install_python310
+    if ! check_python_version; then
+        install_python310
+    fi
     setup_user
     cdn_urls=("https://cdn0.spiritlhl.top/" "http://cdn1.spiritlhl.net/" "http://cdn2.spiritlhl.net/" "http://cdn3.spiritlhl.net/" "http://cdn4.spiritlhl.net/")
     check_cdn_file
