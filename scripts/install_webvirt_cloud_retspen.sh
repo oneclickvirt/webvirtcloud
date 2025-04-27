@@ -52,8 +52,8 @@ check_os() {
                 exit 1
             fi
         elif [ "$OS" = "debian" ]; then
-            if [ "$(printf '%s\n' "$VER" "10" | sort -V | head -n1)" != "10" ]; then
-                _red "Debian 版本必须 ≥ 10，当前版本: $VER"
+            if [ "$(printf '%s\n' "$VER" "11" | sort -V | head -n1)" != "11" ]; then
+                _red "Debian 版本必须 ≥ 11，当前版本: $VER"
                 exit 1
             fi
         fi
