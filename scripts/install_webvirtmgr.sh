@@ -3,6 +3,9 @@
 # Based on https://github.com/retspen/webvirtmgr
 # 2025.04.27
 
+# echo "deb http://security.ubuntu.com/ubuntu bionic-security main" > /etc/apt/sources.list.d/bionic-security.list
+# apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3B4FE6ACC0B21F32
+# apt update
 set -e
 export DEBIAN_FRONTEND=noninteractive
 _red() { echo -e "\033[31m\033[01m$@\033[0m"; }
@@ -121,17 +124,17 @@ check_cdn_file() {
 }
 
 install_kvm() {
-    _blue "安装KVM"
+    _blue "安装KVM（固定老版本）"
     _blue "Installing KVM"
     kvm_deps=(
-        qemu-kvm
-        libvirt-daemon-system
-        libvirt-clients
+        qemu-kvm=1:2.11+dfsg-1ubuntu7.48
+        libvirt-daemon-system=4.0.0-1ubuntu8.19
+        libvirt-clients=4.0.0-1ubuntu8.19
         bridge-utils
         sasl2-bin
     )
     for pkg in "${kvm_deps[@]}"; do
-        _blue "正在安装KVM组件: $pkg"
+        _blue "正在安装指定版本KVM组件: $pkg"
         apt install -y "$pkg"
     done
     _blue "将用户 ${webvirtmgr_user} 添加到 libvirt 和 kvm 组"
