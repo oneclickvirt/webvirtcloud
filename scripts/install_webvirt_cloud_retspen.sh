@@ -245,6 +245,9 @@ setup_virtualenv() {
             source venv/bin/activate
             pip install -r conf/requirements.txt
         fi
+    else
+        source venv/bin/activate
+        pip install -r conf/requirements.txt
     fi
     if [ $? -ne 0 ]; then
         _red "✗ Python依赖安装失败"
