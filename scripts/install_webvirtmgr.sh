@@ -190,7 +190,7 @@ compile_python27() {
     wget -q --show-progress https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tgz
     tar -xf Python-2.7.18.tgz
     cd Python-2.7.18
-    ./configure --prefix=/opt/python2.7 --enable-unicode=ucs4
+    ./configure --prefix=/opt/python2.7 --enable-optimizations --enable-unicode=ucs4 > /dev/null 2>&1
     make -j$(nproc)
     make altinstall
     ln -sf /opt/python2.7/bin/python2.7 /usr/local/bin/python2.7
