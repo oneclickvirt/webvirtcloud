@@ -45,18 +45,6 @@ check_os() {
             _red "此脚本仅支持 Ubuntu 或 Debian 系统"
             exit 1
         fi
-        # 版本比较
-        if [ "$OS" = "ubuntu" ]; then
-            if [ "$(printf '%s\n' "$VER" "20.04" | sort -V | head -n1)" != "20.04" ]; then
-                _red "Ubuntu 版本必须 ≥ 20.04，当前版本: $VER"
-                exit 1
-            fi
-        elif [ "$OS" = "debian" ]; then
-            if [ "$(printf '%s\n' "$VER" "12" | sort -V | head -n1)" != "11" ]; then
-                _red "Debian 版本必须 ≥ 11，当前版本: $VER"
-                exit 1
-            fi
-        fi
         _green "检测到系统: $OS $VER"
     else
         _red "无法确定操作系统类型"
