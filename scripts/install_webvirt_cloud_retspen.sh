@@ -4,11 +4,13 @@
 # 2025.04.27
 
 ###########################################
+# Initialization and Environment Variables
 # 初始化和环境变量设置
 ###########################################
 set -e
 export DEBIAN_FRONTEND=noninteractive
 
+# Colored output functions
 # 彩色输出函数
 _red() { echo -e "\033[31m\033[01m$@\033[0m"; }
 _green() { echo -e "\033[32m\033[01m$@\033[0m"; }
@@ -16,21 +18,25 @@ _yellow() { echo -e "\033[33m\033[01m$@\033[0m"; }
 _blue() { echo -e "\033[36m\033[01m$@\033[0m"; }
 reading() { read -rp "$(_green "$1")" "$2"; }
 
+# Set UTF-8 locale
 # 设置UTF-8语言环境
 setup_locale() {
     utf8_locale=$(locale -a 2>/dev/null | grep -i -m 1 -E "UTF-8|utf8")
     if [[ -z "$utf8_locale" ]]; then
+        _yellow "No UTF-8 locale found"
         _yellow "未找到UTF-8语言环境"
     else
         export LC_ALL="$utf8_locale"
         export LANG="$utf8_locale"
         export LANGUAGE="$utf8_locale"
+        _green "Locale set to $utf8_locale"
         _green "语言环境设置为 $utf8_locale"
     fi
 }
 
 check_root() {
     if [ "$(id -u)" != "0" ]; then
+        _red "This script must be run as root" 1>&2
         _red "此脚本必须以root用户运行" 1>&2
         exit 1
     fi
@@ -42,36 +48,45 @@ check_os() {
         OS=$ID
         VER=$VERSION_ID
         if [ "$OS" != "ubuntu" ] && [ "$OS" != "debian" ]; then
+            _red "This script only supports Ubuntu or Debian systems"
             _red "此脚本仅支持 Ubuntu 或 Debian 系统"
             exit 1
         fi
+        _green "Detected system: $OS $VER"
         _green "检测到系统: $OS $VER"
     else
+        _red "Unable to determine OS type"
         _red "无法确定操作系统类型"
         exit 1
     fi
 }
 
+# Check and update package manager
 # 检查并更新包管理器
 check_update() {
+    _yellow "Updating package sources"
     _yellow "更新包管理源"
     temp_file_apt_fix=$(mktemp)
     apt_update_output=$(apt-get update 2>&1)
     echo "$apt_update_output" >"$temp_file_apt_fix"
+    # Fix NO_PUBKEY issues
     # 修复 NO_PUBKEY 问题
     if grep -q 'NO_PUBKEY' "$temp_file_apt_fix"; then
         public_keys=$(grep -oE 'NO_PUBKEY [0-9A-F]+' "$temp_file_apt_fix" | awk '{ print $2 }')
         joined_keys=$(echo "$public_keys" | paste -sd " ")
+        _yellow "Missing public keys: ${joined_keys}"
         _yellow "缺少公钥: ${joined_keys}"
         apt-key adv --keyserver keyserver.ubuntu.com --recv-keys ${joined_keys}
         apt-get update
         if [ $? -eq 0 ]; then
+            _green "Package sources fixed"
             _green "已修复包管理源"
         fi
     fi
     rm -f "$temp_file_apt_fix"
 }
 
+# Get IP address
 # 获取IP地址
 get_ip_address() {
     IPV4=$(ip -4 addr show | grep global | awk '{print $2}' | cut -d '/' -f1 | head -n 1)
@@ -90,12 +105,13 @@ get_ip_address() {
             fi
         done
     fi
+    _green "Detected IP address: $IPV4"
     _green "检测到IP地址: $IPV4"
 }
 
 check_cdn() {
     local o_url=$1
-    local shuffled_cdn_urls=($(shuf -e "${cdn_urls[@]}")) # 打乱数组顺序
+    local shuffled_cdn_urls=($(shuf -e "${cdn_urls[@]}")) # Shuffle array order
     for cdn_url in "${shuffled_cdn_urls[@]}"; do
         if curl -sL -k "$cdn_url$o_url" --max-time 6 | grep -q "success" >/dev/null 2>&1; then
             export cdn_success_url="$cdn_url"
@@ -110,35 +126,45 @@ check_cdn_file() {
     check_cdn "https://raw.githubusercontent.com/spiritLHLS/ecs/main/back/test"
     if [ -n "$cdn_success_url" ]; then
         _yellow "CDN available, using CDN"
+        _yellow "CDN可用，使用CDN"
     else
         _yellow "No CDN available, no use CDN"
+        _yellow "没有可用的CDN，不使用CDN"
     fi
 }
 
 ###########################################
+# Installation Process
 # 安装流程
 ###########################################
 
 check_python_version() {
+    _yellow "Checking Python version..."
     _yellow "检查Python版本..."
     if command -v python3 >/dev/null 2>&1; then
         python_version=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
+        _green "System Python version: $python_version"
         _green "系统Python版本: $python_version"
         if dpkg --compare-versions "$python_version" ge "3.10"; then
+            _green "✓ System Python version meets requirements, skipping Python 3.10 installation"
             _green "✓ 系统Python版本已满足要求，跳过Python 3.10安装"
             return 0
         else
+            _yellow "System Python version is lower than 3.10, need to install Python 3.10"
             _yellow "系统Python版本低于3.10，需要安装Python 3.10"
             return 1
         fi
     else
+        _yellow "Python3 not detected, need to install Python 3.10"
         _yellow "未检测到Python3，需要安装Python 3.10"
         return 1
     fi
 }
 
+# Install Python 3.10 from source
 # 从源码安装Python 3.10
 install_python310() {
+    _yellow "Installing Python 3.10 from source..."
     _yellow "正在从源码安装Python 3.10..."
     apt-get install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev \
         libnss3-dev libssl-dev libreadline-dev libffi-dev wget
@@ -152,17 +178,22 @@ install_python310() {
     ln -sf /usr/local/bin/python3.10 /usr/local/bin/python310
     ln -sf /usr/local/bin/pip3.10 /usr/local/bin/pip310
     if python3.10 --version; then
+        _green "✓ Python 3.10 installation successful"
         _green "✓ Python 3.10 安装成功"
     else
+        _red "✗ Python 3.10 installation failed"
         _red "✗ Python 3.10 安装失败"
         exit 1
     fi
 }
 
+# Install dependencies
 # 安装依赖包
 install_dependencies() {
+    _yellow "Starting dependencies installation..."
     _yellow "开始安装依赖..."
     check_update
+    # Install required packages
     # 安装所需包
     local packages=(
         "python3" "python3-pip" "python3-dev" "python3-lxml" "python3-guestfs"
@@ -173,46 +204,61 @@ install_dependencies() {
         "libldap2-dev" "libsasl2-dev" "lsb-release" "libsqlite3-dev"
     )
     for pkg in "${packages[@]}"; do
+        _blue "Installing: $pkg"
         _blue "正在安装: $pkg"
         apt install -y "$pkg"
         if [ $? -eq 0 ]; then
+            _green "✓ $pkg installation successful"
             _green "✓ $pkg 安装成功"
         else
+            _red "✗ $pkg installation failed"
             _red "✗ $pkg 安装失败"
             exit 1
         fi
     done
+    _green "All dependencies installed"
     _green "所有依赖包安装完成"
 }
 
+# User and permissions setup
 # 用户和权限设置
 setup_user() {
+    _yellow "Setting up user and permissions..."
     _yellow "设置用户和权限..."
     webvirtmgr_user="www-data"
     webvirtmgr_group="www-data"
     if ! id -u $webvirtmgr_user &>/dev/null; then
         useradd -m -s /bin/bash $webvirtmgr_user
+        _green "✓ Created user $webvirtmgr_user"
         _green "✓ 创建用户 $webvirtmgr_user"
     else
+        _green "✓ User $webvirtmgr_user already exists"
         _green "✓ 用户 $webvirtmgr_user 已存在"
     fi
     if ! getent group $webvirtmgr_group &>/dev/null; then
         groupadd $webvirtmgr_group
+        _green "✓ Created group $webvirtmgr_group"
         _green "✓ 创建用户组 $webvirtmgr_group"
     else
+        _green "✓ Group $webvirtmgr_group already exists"
         _green "✓ 用户组 $webvirtmgr_group 已存在"
     fi
 }
 
+# Generate secret key
 # 创建密钥
 generate_secret_key() {
+    _yellow "Generating security key..."
     _yellow "生成安全密钥..."
     secret_key=$(python3 -c 'import random, string; haystack = string.ascii_letters + string.digits; print("".join([random.SystemRandom().choice(haystack) for _ in range(50)]))')
+    _green "✓ Key generation successful"
     _green "✓ 密钥生成成功"
 }
 
+# Clone and configure WebVirtCloud
 # 克隆和配置WebVirtCloud
 clone_webvirtcloud() {
+    _yellow "Cloning WebVirtCloud repository..."
     _yellow "克隆WebVirtCloud仓库..."
     cd /tmp
     if [ -d "webvirtcloud" ]; then
@@ -220,10 +266,13 @@ clone_webvirtcloud() {
     fi
     git clone "${cdn_success_url}https://github.com/retspen/webvirtcloud.git"
     if [ $? -ne 0 ]; then
+        _red "✗ Repository clone failed"
         _red "✗ 仓库克隆失败"
         exit 1
     fi
+    _green "✓ Repository clone successful"
     _green "✓ 仓库克隆成功"
+    _yellow "Configuring WebVirtCloud..."
     _yellow "配置WebVirtCloud..."
     cd webvirtcloud
     cp webvirtcloud/settings.py.template webvirtcloud/settings.py
@@ -238,47 +287,62 @@ clone_webvirtcloud() {
     fi
     mv /tmp/webvirtcloud /srv/
     chown -R ${webvirtmgr_user}:${webvirtmgr_group} /srv/webvirtcloud
+    _green "✓ WebVirtCloud configuration complete"
     _green "✓ WebVirtCloud配置完成"
 }
 
+# Set up Python virtual environment and dependencies
 # 设置Python虚拟环境和依赖
 setup_virtualenv() {
+    _yellow "Setting up Python virtual environment..."
     _yellow "设置Python虚拟环境..."
     cd /srv/webvirtcloud
     if command -v python3.10 >/dev/null 2>&1 || command -v /usr/local/bin/python3.10 >/dev/null 2>&1; then
+        _green "Creating virtual environment with Python 3.10"
         _green "使用Python 3.10创建虚拟环境"
         python_cmd=$(command -v python3.10 || command -v /usr/local/bin/python3.10)
         $python_cmd -m venv venv
     else
+        _green "Creating virtual environment with system Python"
         _green "使用系统Python创建虚拟环境"
         virtualenv -p python3 venv
     fi
     if [ $? -ne 0 ]; then
+        _red "✗ Virtual environment creation failed"
         _red "✗ 虚拟环境创建失败"
         exit 1
     fi
+    _green "✓ Virtual environment created successfully"
     _green "✓ 虚拟环境创建成功"
+    _yellow "Installing Python dependencies..."
     _yellow "安装Python依赖..."
     source venv/bin/activate
     pip install -r conf/requirements.txt
     if [ $? -ne 0 ]; then
+        _red "✗ Python dependencies installation failed"
         _red "✗ Python依赖安装失败"
         exit 1
     fi
+    _green "✓ Python dependencies installed successfully"
     _green "✓ Python依赖安装成功"
+    _yellow "Running database migrations..."
     _yellow "运行数据库迁移..."
     python3 manage.py migrate
     if [ $? -ne 0 ]; then
+        _red "✗ Database migration failed"
         _red "✗ 数据库迁移失败"
         exit 1
     fi
+    _green "✓ Database migration successful"
     _green "✓ 数据库迁移成功"
     deactivate
     chown -R ${webvirtmgr_user}:${webvirtmgr_group} /srv/webvirtcloud
 }
 
+# Configure libvirt
 # 配置libvirt
 configure_libvirt() {
+    _yellow "Configuring libvirt..."
     _yellow "配置libvirt..."
     adduser ${webvirtmgr_user} libvirt
     adduser ${webvirtmgr_user} kvm
@@ -288,20 +352,26 @@ configure_libvirt() {
     sed -i 's/#auth_tcp/auth_tcp/g' /etc/libvirt/libvirtd.conf
     sed -i 's/#[ ]*vnc_listen.*/vnc_listen = "0.0.0.0"/g' /etc/libvirt/qemu.conf
     sed -i 's/#[ ]*spice_listen.*/spice_listen = "0.0.0.0"/g' /etc/libvirt/qemu.conf
+    _green "✓ libvirt configuration complete"
     _green "✓ libvirt配置完成"
 }
 
+# Configure gstfsd
 # 配置gstfsd
 configure_gstfsd() {
+    _yellow "Configuring gstfsd service..."
     _yellow "配置gstfsd服务..."
     cp /srv/webvirtcloud/conf/daemon/gstfsd /usr/local/bin/gstfsd
     chmod +x /usr/local/bin/gstfsd
     cp /srv/webvirtcloud/conf/supervisor/gstfsd.conf /etc/supervisor/conf.d/gstfsd.conf
+    _green "✓ gstfsd configuration complete"
     _green "✓ gstfsd配置完成"
 }
 
+# Configure Nginx
 # 配置Nginx
 configure_nginx() {
+    _yellow "Configuring Nginx..."
     _yellow "配置Nginx..."
     cat >/etc/nginx/sites-available/webvirtcloud <<EOF
 # WebVirtCloud
@@ -338,69 +408,90 @@ upstream wsnovncd {
 EOF
     ln -sf /etc/nginx/sites-available/webvirtcloud /etc/nginx/sites-enabled/
     rm -f /etc/nginx/sites-enabled/default
+    _green "✓ Nginx configuration complete"
     _green "✓ Nginx配置完成"
 }
 
+# Create admin user
 # 创建管理员用户
 create_admin() {
+    _yellow "Creating admin user..."
     _yellow "创建管理员用户..."
     cd /srv/webvirtcloud
     source venv/bin/activate
-    echo "from django.contrib.auth.models import User; User.objects.create_superuser('admin', 'admin@example.com', 'admin')" | python3 manage.py shell || echo "管理员用户已存在，跳过创建"
+    echo "from django.contrib.auth.models import User; User.objects.create_superuser('admin', 'admin@example.com', 'admin')" | python3 manage.py shell || echo "Admin user already exists, skipping creation"
     deactivate
+    _green "✓ Admin user setup complete"
     _green "✓ 管理员用户设置完成"
 }
 
+# Restart services
 # 重启服务
 restart_services() {
+    _yellow "Restarting services..."
     _yellow "重启相关服务..."
     systemctl restart libvirtd
     if [ $? -ne 0 ]; then
+        _red "✗ libvirtd restart failed, please check logs"
         _red "✗ libvirtd重启失败，请检查日志"
         systemctl status libvirtd
     else
+        _green "✓ libvirtd restart successful"
         _green "✓ libvirtd重启成功"
     fi
     systemctl restart supervisor
     if [ $? -ne 0 ]; then
+        _red "✗ supervisor restart failed, please check logs"
         _red "✗ supervisor重启失败，请检查日志"
         systemctl status supervisor
     else
+        _green "✓ supervisor restart successful"
         _green "✓ supervisor重启成功"
     fi
     systemctl restart nginx
     if [ $? -ne 0 ]; then
+        _red "✗ nginx restart failed, please check logs"
         _red "✗ nginx重启失败，请检查日志"
         systemctl status nginx
     else
+        _green "✓ nginx restart successful"
         _green "✓ nginx重启成功"
     fi
 }
 
+# Configure firewall
 # 配置防火墙
 configure_firewall() {
+    _yellow "Configuring firewall rules..."
     _yellow "配置防火墙规则..."
     if [ -x "$(command -v ufw)" ]; then
         ufw allow 80/tcp
         ufw allow 6080/tcp
+        _green "✓ ufw firewall rules added"
         _green "✓ ufw防火墙规则已添加"
     fi
     if [ -x "$(command -v firewall-cmd)" ]; then
         firewall-cmd --permanent --add-port=80/tcp
         firewall-cmd --permanent --add-port=6080/tcp
         firewall-cmd --reload
+        _green "✓ firewalld firewall rules added"
         _green "✓ firewalld防火墙规则已添加"
     fi
 }
 
 show_completion() {
+    _green "WebVirtCloud installation complete!"
     _green "WebVirtCloud 安装完成!"
+    _yellow "Access URL: http://$IPV4"
     _yellow "访问地址: http://$IPV4"
+    _yellow "Default username: admin"
     _yellow "默认用户名: admin"
+    _yellow "Default password: admin"
     _yellow "默认密码: admin"
 }
 
 main() {
+    _blue "Starting WebVirtCloud installation..."
     _blue "开始安装 WebVirtCloud..."
     setup_locale
     check_root

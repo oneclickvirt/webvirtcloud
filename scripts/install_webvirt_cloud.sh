@@ -71,6 +71,7 @@ reading() { read -rp "$(_green "$1")" "$2"; }
 
 # 检查并更新包管理器
 check_update() {
+    _yellow "Updating package repositories"
     _yellow "更新包管理源"
     if command -v apt-get >/dev/null 2>&1; then
         distro=""
@@ -105,6 +106,7 @@ check_update() {
         fi
         # 如为归档版本，则替换为归档源
         if [[ "$is_archive" == true ]]; then
+            _yellow "Archived system detected: $distro $codename, please upgrade your system. Exiting program."
             _yellow "检测到归档系统：$distro $codename，请升级系统，正在退出程序"
             exit 1
         fi
@@ -116,10 +118,12 @@ check_update() {
         if grep -q 'NO_PUBKEY' "$temp_file_apt_fix"; then
             public_keys=$(grep -oE 'NO_PUBKEY [0-9A-F]+' "$temp_file_apt_fix" | awk '{ print $2 }')
             joined_keys=$(echo "$public_keys" | paste -sd " ")
+            _yellow "Missing public keys: ${joined_keys}"
             _yellow "缺少公钥: ${joined_keys}"
             apt-key adv --keyserver keyserver.ubuntu.com --recv-keys ${joined_keys}
             apt-get update
             if [ $? -eq 0 ]; then
+                _green "Fixed"
                 _green "已修复"
             fi
         fi
@@ -188,8 +192,10 @@ check_cdn_file() {
     check_cdn "https://raw.githubusercontent.com/spiritLHLS/ecs/main/back/test"
     if [ -n "$cdn_success_url" ]; then
         _yellow "CDN available, using CDN"
+        _yellow "CDN可用，使用CDN"
     else
         _yellow "No CDN available, no use CDN"
+        _yellow "没有可用的CDN，不使用CDN"
     fi
 }
 
@@ -200,6 +206,7 @@ check_cdn_file() {
 # 检查系统兼容性
 check_system_compatibility() {
     if [[ "${RELEASE[int]}" != "Debian" && "${RELEASE[int]}" != "Ubuntu" && "${RELEASE[int]}" != "CentOS" ]]; then
+        _red "Current system not supported: ${RELEASE[int]}"
         _red "不支持当前系统: ${RELEASE[int]}"
         exit 1
     fi
@@ -211,33 +218,41 @@ check_system_compatibility() {
 
 # 安装基本依赖
 install_basic_dependencies() {
+    _yellow "Installing basic dependencies"
     _yellow "安装基本依赖"
     check_update
     if ! command -v curl >/dev/null 2>&1; then
+        _yellow "Installing curl"
         _yellow "安装 curl"
         ${PACKAGE_INSTALL[int]} curl
     fi
     if ! command -v tar >/dev/null 2>&1; then
+        _yellow "Installing tar"
         _yellow "安装 tar"
         ${PACKAGE_INSTALL[int]} tar
     fi
     if ! command -v unzip >/dev/null 2>&1; then
+        _yellow "Installing unzip"
         _yellow "安装 unzip"
         ${PACKAGE_INSTALL[int]} unzip
     fi
     if ! command -v git >/dev/null 2>&1; then
+        _yellow "Installing git"
         _yellow "安装 git"
         ${PACKAGE_INSTALL[int]} git
     fi
     if ! command -v sudo >/dev/null 2>&1; then
+        _yellow "Installing sudo"
         _yellow "安装 sudo"
         ${PACKAGE_INSTALL[int]} sudo
     fi
     if ! command -v jq >/dev/null 2>&1; then
+        _yellow "Installing jq"
         _yellow "安装 jq"
         ${PACKAGE_INSTALL[int]} jq
     fi
     if ! command -v openssl >/dev/null 2>&1; then
+        _yellow "Installing openssl"
         _yellow "安装 openssl"
         ${PACKAGE_INSTALL[int]} openssl
     fi
@@ -247,20 +262,25 @@ install_basic_dependencies() {
 # Docker安装模块
 #######################
 check_china() {
+    _yellow "Detecting IP region......"
     _yellow "检测IP区域......"
     if [[ -z "${CN}" ]]; then
         if [[ $(curl -m 6 -s https://ipapi.co/json | grep 'China') != "" ]]; then
+            _yellow "According to ipapi.co, your current IP may be in China"
             _yellow "根据ipapi.co提供的信息，当前IP可能在中国"
-            read -e -r -p "是否选用中国镜像完成相关组件安装? ([y]/n) " input
+            read -e -r -p "Use Chinese mirrors to install components? ([y]/n) " input
             case $input in
             [yY][eE][sS] | [yY])
+                echo "Using Chinese mirrors"
                 echo "使用中国镜像"
                 CN=true
                 ;;
             [nN][oO] | [nN])
+                echo "Not using Chinese mirrors"
                 echo "不使用中国镜像"
                 ;;
             *)
+                echo "Using Chinese mirrors"
                 echo "使用中国镜像"
                 CN=true
                 ;;
@@ -275,6 +295,7 @@ install_docker_and_compose() {
     sleep 1
     if ! command -v docker >/dev/null 2>&1; then
         _yellow "Installing docker"
+        _yellow "安装 docker"
         if [[ -z "${CN}" || "${CN}" != true ]]; then
             bash <(curl -sSL https://raw.githubusercontent.com/SuperManito/LinuxMirrors/main/DockerInstallation.sh) \
                 --source download.docker.com \
@@ -296,11 +317,13 @@ install_docker_and_compose() {
     if ! command -v docker-compose >/dev/null 2>&1; then
         if [[ -z "${CN}" || "${CN}" != true ]]; then
             _yellow "Installing docker-compose"
+            _yellow "安装 docker-compose"
             curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" -o /usr/local/bin/docker-compose
             chmod +x /usr/local/bin/docker-compose
             docker-compose --version
         else
             _yellow "Installing docker-compose"
+            _yellow "安装 docker-compose"
             curl -L "https://cdn.spiritlhl.net/https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" -o /usr/local/bin/docker-compose
             chmod +x /usr/local/bin/docker-compose
             docker-compose --version
@@ -310,6 +333,7 @@ install_docker_and_compose() {
 }
 
 install_controller() {
+    _yellow "Starting controller installation"
     _yellow "开始安装控制器"
     cd /root
     if [ -d "webvirtcloud" ]; then
@@ -325,13 +349,16 @@ install_controller() {
     fi
     cd webvirtcloud
     if [ -z "$IPV4" ]; then
+        _red "Error: IPV4 variable not set, getting it again..."
         _red "错误: IPV4变量未设置，正在重新获取..."
         check_ipv4
         if [ -z "$IPV4" ]; then
+            _red "Unable to get IPV4 address, please set it manually and try again"
             _red "无法获取IPV4地址，请手动设置后重试"
             return 1
         fi
     fi
+    _yellow "Creating environment configuration file..."
     _yellow "创建环境配置文件..."
     DOMAIN_NAME="$(echo "$IPV4" | tr '.' '-')".nip.io
     mkdir -p .caddy/certs
@@ -343,19 +370,29 @@ VITE_DISPLAY_PRICES=true
 VITE_LOADBALANCER=true
 EOF
     cat env.local
+    _yellow "Starting WebVirtCloud..."
     _yellow "启动WebVirtCloud..."
     ./webvirtcloud.sh start
     if [ $? -eq 0 ]; then
         _green "WebVirtCloud installation completed successfully!"
+        _green "WebVirtCloud安装成功完成！"
         _green "You can access the WebVirtCloud interface at"
+        _green "您可以通过以下地址访问WebVirtCloud界面"
         _green "User Panel: https://${DOMAIN_NAME}"
+        _green "用户面板: https://${DOMAIN_NAME}"
         _green "Admin Panel: https://${DOMAIN_NAME}/admin/"
+        _green "管理员面板: https://${DOMAIN_NAME}/admin/"
         _green "Ensure your firewall allows access to ports 80 (HTTP) and 443 (HTTPS) for the WebVirtCloud interface."
+        _green "请确保您的防火墙允许访问WebVirtCloud界面的80端口（HTTP）和443端口（HTTPS）。"
         _green "Default Credentials:"
+        _green "默认凭据："
         _green "Username: admin@webvirt.cloud"
+        _green "用户名: admin@webvirt.cloud"
         _green "Password: admin"
+        _green "密码: admin"
     else
         _red "WebVirtCloud failed to start. Please check the logs for more information."
+        _red "WebVirtCloud启动失败。请查看日志以获取更多信息。"
     fi
 }
 
@@ -368,18 +405,23 @@ main() {
     setup_locale
     init_system_vars
     check_system_compatibility
+    _yellow "Detecting IP address..."
     _yellow "正在检测IP地址..."
     check_ipv4
+    _green "Current IP address: $IPV4"
     _green "当前IP地址: $IPV4"
     check_china
     install_basic_dependencies
     cdn_urls=("https://cdn0.spiritlhl.top/" "http://cdn1.spiritlhl.net/" "http://cdn2.spiritlhl.net/" "http://cdn3.spiritlhl.net/" "http://cdn4.spiritlhl.net/")
     check_cdn_file
     statistics_of_run_times
+    _green "Script run count today: ${TODAY}, total run count: ${TOTAL}"
     _green "脚本当天运行次数:${TODAY}，累计运行次数:${TOTAL}"
+    _yellow "Preparing to install WebVirtCloud controller..."
     _yellow "准备安装WebVirtCloud控制器..."
     install_docker_and_compose
     install_controller
+    _green "Execution completed!"
     _green "执行完成!"
 }
 
