@@ -146,7 +146,7 @@ install_python310() {
     wget https://www.python.org/ftp/python/3.10.13/Python-3.10.13.tgz
     tar -xf Python-3.10.13.tgz
     cd Python-3.10.13
-    ./configure --enable-optimizations
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions
     make -j $(nproc)
     make altinstall
     ln -sf /usr/local/bin/python3.10 /usr/local/bin/python310
@@ -170,7 +170,7 @@ install_dependencies() {
         "git" "virtualenv" "python3-virtualenv" "supervisor"
         "libsasl2-modules" "wget" "curl" "nginx"
         "qemu-kvm" "libvirt-daemon-system" "libvirt-clients" "bridge-utils" "virt-manager" "sasl2-bin"
-        "libldap2-dev" "libsasl2-dev" "lsb-release" "libsqlite3-dev" "python3-pysqlite3"
+        "libldap2-dev" "libsasl2-dev" "lsb-release"
     )
     for pkg in "${packages[@]}"; do
         _blue "正在安装: $pkg"
