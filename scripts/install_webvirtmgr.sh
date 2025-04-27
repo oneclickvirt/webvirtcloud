@@ -190,11 +190,9 @@ compile_python27() {
     wget -q --show-progress https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tgz
     tar -xf Python-2.7.18.tgz
     cd Python-2.7.18
-    ./configure --prefix=/opt/python2.7 --enable-optimizations --enable-unicode=ucs4
-    # 禁止 make 阶段触发测试
-    make -j$(nproc) testall= || { _red "make 编译失败"; exit 1; }
-    # 禁止 altinstall 阶段触发测试
-    make altinstall testall= || { _red "make altinstall 失败"; exit 1; }
+    ./configure --prefix=/opt/python2.7 --enable-optimizations --enable-unicode=ucs4 TESTOPTS=""
+    make -j$(nproc) TESTOPTS="" || { _red "make 编译失败"; exit 1; }
+    make altinstall TESTOPTS="" || { _red "make altinstall 失败"; exit 1; }
     ln -sf /opt/python2.7/bin/python2.7 /usr/local/bin/python2.7
     ln -sf /opt/python2.7/bin/pip2.7 /usr/local/bin/pip2.7
     python2.7 --version
