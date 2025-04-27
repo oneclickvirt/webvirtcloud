@@ -2,6 +2,32 @@
 # https://github.com/oneclickvirt/webvirtcloud
 # 2025.04.20
 
+    ubuntu_version=$(lsb_release -rs)
+    os_name=$(lsb_release -si)
+    if [ "$os_name" == "Ubuntu" ]; then
+        if dpkg --compare-versions "$ubuntu_version" le "22.04"; then
+            echo "Detected Ubuntu $ubuntu_version, patching conf/requirements.txt..."
+            sed -i 's/^django_bootstrap5==[0-9.]*$/django_bootstrap5==24.3/' conf/requirements.txt
+            sed -i 's/^django-bootstrap-icons==[0-9.]*$/django-bootstrap-icons==0.8.7/' conf/requirements.txt
+            sed -i 's/^django-qr-code==[0-9.]*$/django-qr-code==4.0.1/' conf/requirements.txt
+            sed -i 's/^django-auth-ldap==[0-9.]*$/django-auth-ldap==5.0.0/' conf/requirements.txt
+            sed -i 's/^qrcode==[0-9.]*$/qrcode==7.4.2/' conf/requirements.txt
+            sed -i 's/^whitenoise==[0-9.]*$/whitenoise==6.7.0/' conf/requirements.txt
+            sed -i 's/^zipp==[0-9.]*$/zipp==3.20.2/' conf/requirements.txt
+            source venv/bin/activate
+            pip install -r conf/requirements.txt
+            # https://github.com/retspen/webvirtcloud/issues/641
+            sed -i 's/^import zoneinfo$/from backports.zoneinfo import ZoneInfo as zoneinfo/' /srv/webvirtcloud/venv/lib/python3.8/site-packages/qr_code/qrcode/utils.py
+        else
+            echo "Ubuntu $ubuntu_version detected, no patch needed."
+            source venv/bin/activate
+            pip install -r conf/requirements.txt
+        fi
+    else
+        source venv/bin/activate
+        pip install -r conf/requirements.txt
+    fi
+
 install_with_debian() {
     sudo apt install -y network-manager firewalld
     CONF_FILE="/etc/NetworkManager/NetworkManager.conf"
