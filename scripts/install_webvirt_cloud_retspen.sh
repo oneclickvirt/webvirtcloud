@@ -170,7 +170,7 @@ install_dependencies() {
         "git" "virtualenv" "python3-virtualenv" "supervisor"
         "libsasl2-modules" "wget" "curl" "nginx"
         "qemu-kvm" "libvirt-daemon-system" "libvirt-clients" "bridge-utils" "virt-manager" "sasl2-bin"
-        "libldap2-dev" "libsasl2-dev" "lsb-release"
+        "libldap2-dev" "libsasl2-dev" "lsb-release" "libsqlite3-dev"
     )
     for pkg in "${packages[@]}"; do
         _blue "正在安装: $pkg"
@@ -259,8 +259,6 @@ setup_virtualenv() {
     fi
     _green "✓ 虚拟环境创建成功"
     _yellow "安装Python依赖..."
-    ubuntu_version=$(lsb_release -rs)
-    os_name=$(lsb_release -si)
     source venv/bin/activate
     pip install -r conf/requirements.txt
     if [ $? -ne 0 ]; then
