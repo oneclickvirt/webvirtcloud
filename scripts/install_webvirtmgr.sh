@@ -170,34 +170,34 @@ install_build_dependencies() {
     done
 }
 
-compile_python27() {
-    _blue "编译安装 Python 2.7"
-    _blue "Compiling and installing Python 2.7"
+compile_python33() {
+    _blue "编译安装 Python 3.3"
+    _blue "Compiling and installing Python 3.3"
     cd /tmp
-    wget -q --show-progress https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tgz
-    tar -xf Python-2.7.18.tgz
-    cd Python-2.7.18
-    ./configure --prefix=/opt/python2.7 --enable-optimizations --enable-unicode=ucs4 > /dev/null 2>&1
+    wget -q --show-progress https://www.python.org/ftp/python/3.3.7/Python-3.3.7.tgz
+    tar -xf Python-3.3.7.tgz
+    cd Python-3.3.7
+    ./configure --prefix=/opt/python3.3 --enable-optimizations > /dev/null 2>&1
     make -j$(nproc)
     make altinstall
-    ln -sf /opt/python2.7/bin/python2.7 /usr/local/bin/python2.7
-    ln -sf /opt/python2.7/bin/pip2.7 /usr/local/bin/pip2.7
-    python2.7 --version
-    wget -q --show-progress https://bootstrap.pypa.io/pip/2.7/get-pip.py
-    python2.7 get-pip.py
+    ln -sf /opt/python3.3/bin/python3.3 /usr/local/bin/python3.3
+    ln -sf /opt/python3.3/bin/pip3.3 /usr/local/bin/pip3.3
+    python3.3 --version
+    wget -q --show-progress https://bootstrap.pypa.io/pip/3.3/get-pip.py
+    python3.3 get-pip.py
     cd /tmp
-    rm -rf Python-2.7.18*
+    rm -rf Python-3.3.7*
     rm -f get-pip.py
-    _green "Python 2.7 安装完成"
-    _green "Python 2.7 installation completed"
+    _green "Python 3.3 安装完成"
+    _green "Python 3.3 installation completed"
 }
 
 install_virtualenv() {
     _blue "安装虚拟环境"
     _blue "Installing virtual environment"
-    /opt/python2.7/bin/pip2.7 install virtualenv
+    /opt/python3.3/bin/pip3.3 install virtualenv
     mkdir -p /var/www
-    /opt/python2.7/bin/virtualenv --python=/opt/python2.7/bin/python2.7 /var/www/webvirtmgr_env
+    /opt/python3.3/bin/virtualenv --python=/opt/python3.3/bin/python3.3 /var/www/webvirtmgr_env
     chown -R ${webvirtmgr_user}:${webvirtmgr_group} /var/www/webvirtmgr_env
 }
 
@@ -331,8 +331,8 @@ completion_message() {
     _green "管理员密码/Admin password: Admin@2025"
     _yellow "请登录后立即修改密码"
     _yellow "Please change the password immediately after login"
-    _yellow "注意: WebVirtMgr 安装在Python虚拟环境中，Python 2.7编译安装在 /opt/python2.7"
-    _yellow "Note: WebVirtMgr is installed in a Python virtual environment, Python 2.7 is compiled and installed in /opt/python2.7"
+    _yellow "注意: WebVirtMgr 安装在Python虚拟环境中，Python 3.3编译安装在 /opt/python3.3"
+    _yellow "Note: WebVirtMgr is installed in a Python virtual environment, Python 3.3 is compiled and installed in /opt/python3.3"
 }
 
 setup_user() {
@@ -366,7 +366,7 @@ main() {
     get_ip_address
     setup_user
     install_build_dependencies
-    compile_python27
+    compile_python33
     install_kvm
     cdn_urls=("https://cdn0.spiritlhl.top/" "http://cdn1.spiritlhl.net/" "http://cdn2.spiritlhl.net/" "http://cdn3.spiritlhl.net/" "http://cdn4.spiritlhl.net/")
     check_cdn_file
