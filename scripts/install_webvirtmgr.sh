@@ -131,17 +131,8 @@ install_kvm() {
         sasl2-bin
     )
     for pkg in "${kvm_deps[@]}"; do
-        dpkg -s "$pkg" &>/dev/null
-        if [[ $? -eq 0 ]]; then
-            _green "已安装，跳过: $pkg"
-        else
-            _blue "正在安装KVM组件: $pkg"
-            apt install -y "$pkg"
-            if [[ $? -ne 0 ]]; then
-                _red "安装 $pkg 失败，请检查！"
-                exit 1
-            fi
-        fi
+        _blue "正在安装KVM组件: $pkg"
+        apt install -y "$pkg"
     done
     _blue "将用户 ${webvirtmgr_user} 添加到 libvirt 和 kvm 组"
     adduser "${webvirtmgr_user}" libvirt
@@ -176,10 +167,6 @@ install_build_dependencies() {
     for pkg in "${deps[@]}"; do
         _blue "正在安装依赖包: $pkg"
         apt install -y "$pkg"
-        if [[ $? -ne 0 ]]; then
-            _red "安装 $pkg 失败，请检查！"
-            exit 1
-        fi
     done
 }
 
