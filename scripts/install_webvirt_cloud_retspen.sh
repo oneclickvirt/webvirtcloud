@@ -1,7 +1,7 @@
 #!/bin/bash
 # https://github.com/oneclickvirt/webvirtcloud
 # For https://github.com/retspen/webvirtcloud
-# 2025.04.26
+# 2025.04.27
 
 ###########################################
 # 初始化和环境变量设置
@@ -29,7 +29,6 @@ setup_locale() {
     fi
 }
 
-# 检查是否为root用户
 check_root() {
     if [ "$(id -u)" != "0" ]; then
         _red "此脚本必须以root用户运行" 1>&2
@@ -37,15 +36,26 @@ check_root() {
     fi
 }
 
-# 检查系统版本
 check_os() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
         OS=$ID
         VER=$VERSION_ID
         if [ "$OS" != "ubuntu" ] && [ "$OS" != "debian" ]; then
-            _red "此脚本仅支持Ubuntu或Debian系统"
+            _red "此脚本仅支持 Ubuntu 或 Debian 系统"
             exit 1
+        fi
+        # 版本比较
+        if [ "$OS" = "ubuntu" ]; then
+            if [ "$(printf '%s\n' "$VER" "20.04" | sort -V | head -n1)" != "20.04" ]; then
+                _red "Ubuntu 版本必须 ≥ 20.04，当前版本: $VER"
+                exit 1
+            fi
+        elif [ "$OS" = "debian" ]; then
+            if [ "$(printf '%s\n' "$VER" "10" | sort -V | head -n1)" != "10" ]; then
+                _red "Debian 版本必须 ≥ 10，当前版本: $VER"
+                exit 1
+            fi
         fi
         _green "检测到系统: $OS $VER"
     else
