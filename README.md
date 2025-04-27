@@ -4,7 +4,7 @@
 
 # 说明
 
-两个项目不是同样的项目，只是项目名称相同。
+webvirtcloud的两个项目不是同样的项目，只是项目名称相同，维护者不同且面板也不同。
 
 ## https://github.com/webvirtcloud/webvirtcloud
 
@@ -25,3 +25,13 @@ https://www.spiritlhl.net/incomplete/webvirtcloud_retspen.html
 English:
 
 https://www.spiritlhl.net/en/incomplete/webvirtcloud_retspen.html
+
+## https://github.com/retspen/webvirtmgr
+
+中文：
+
+https://www.spiritlhl.net/incomplete/webvirtmgr.html
+
+English:
+
+https://www.spiritlhl.net/en/incomplete/webvirtmgr.html
