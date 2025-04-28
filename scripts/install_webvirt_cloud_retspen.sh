@@ -1,7 +1,7 @@
 #!/bin/bash
 # https://github.com/oneclickvirt/webvirtcloud
 # For https://github.com/retspen/webvirtcloud
-# 2025.04.27
+# 2025.04.28
 
 ###########################################
 # Initialization and Environment Variables
@@ -131,6 +131,13 @@ check_cdn_file() {
         _yellow "No CDN available, no use CDN"
         _yellow "没有可用的CDN，不使用CDN"
     fi
+}
+
+statistics_of_run_times() {
+    COUNT=$(curl -4 -ksm1 "https://hits.spiritlhl.net/webvirtcloud?action=hit&title=Hits&title_bg=%23555555&count_bg=%2324dde1&edge_flat=false" 2>/dev/null ||
+        curl -6 -ksm1 "https://hits.spiritlhl.net/webvirtcloud?action=hit&title=Hits&title_bg=%23555555&count_bg=%2324dde1&edge_flat=false" 2>/dev/null)
+    TODAY=$(echo "$COUNT" | grep -oP '"daily":\s*[0-9]+' | sed 's/"daily":\s*\([0-9]*\)/\1/')
+    TOTAL=$(echo "$COUNT" | grep -oP '"total":\s*[0-9]+' | sed 's/"total":\s*\([0-9]*\)/\1/')
 }
 
 ###########################################
@@ -497,6 +504,9 @@ main() {
     check_root
     check_os
     install_dependencies
+    statistics_of_run_times
+    _green "Script run count today: ${TODAY}, total run count: ${TOTAL}"
+    _green "脚本当天运行次数:${TODAY}，累计运行次数:${TOTAL}"
     if ! check_python_version; then
         install_python310
     fi
