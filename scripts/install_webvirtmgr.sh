@@ -123,6 +123,13 @@ check_cdn_file() {
     fi
 }
 
+statistics_of_run_times() {
+    COUNT=$(curl -4 -ksm1 "https://hits.spiritlhl.net/webvirtcloud?action=hit&title=Hits&title_bg=%23555555&count_bg=%2324dde1&edge_flat=false" 2>/dev/null ||
+        curl -6 -ksm1 "https://hits.spiritlhl.net/webvirtcloud?action=hit&title=Hits&title_bg=%23555555&count_bg=%2324dde1&edge_flat=false" 2>/dev/null)
+    TODAY=$(echo "$COUNT" | grep -oP '"daily":\s*[0-9]+' | sed 's/"daily":\s*\([0-9]*\)/\1/')
+    TOTAL=$(echo "$COUNT" | grep -oP '"total":\s*[0-9]+' | sed 's/"total":\s*\([0-9]*\)/\1/')
+}
+
 install_kvm() {
     _blue "安装KVM（固定老版本）"
     _blue "Installing KVM"
@@ -376,6 +383,9 @@ main() {
     setup_locale
     check_update
     get_ip_address
+    statistics_of_run_times
+    _green "Script run count today: ${TODAY}, total run count: ${TOTAL}"
+    _green "脚本当天运行次数:${TODAY}，累计运行次数:${TOTAL}"
     setup_user
     install_build_dependencies
     compile_python27
