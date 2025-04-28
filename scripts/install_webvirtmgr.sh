@@ -1,7 +1,7 @@
 #!/bin/bash
 # https://github.com/oneclickvirt/webvirtcloud
 # Based on https://github.com/retspen/webvirtmgr
-# 2025.04.27
+# 2025.04.28
 
 # echo "deb http://security.ubuntu.com/ubuntu bionic-security main" > /etc/apt/sources.list.d/bionic-security.list
 # apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3B4FE6ACC0B21F32
@@ -228,9 +228,9 @@ install_webvirtmgr() {
     source /var/www/webvirtmgr_env/bin/activate
     # 克隆仓库
     if [ -n "$cdn_success_url" ]; then
-        git clone "${cdn_success_url}git://github.com/retspen/webvirtmgr.git" /var/www/webvirtmgr
+        git clone "${cdn_success_url}https://github.com/retspen/webvirtmgr.git" /var/www/webvirtmgr
     else
-        git clone "git://github.com/retspen/webvirtmgr.git" /var/www/webvirtmgr
+        git clone https://github.com/retspen/webvirtmgr.git /var/www/webvirtmgr
     fi
     cd /var/www/webvirtmgr
     pip install -r requirements.txt
