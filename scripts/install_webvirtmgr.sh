@@ -208,7 +208,8 @@ install_python_deps() {
     _blue "安装Python依赖"
     _blue "Installing Python dependencies"
     source /var/www/webvirtmgr_env/bin/activate
-    pip install libvirt-python==4.0.0
+    # pip install libvirt-python==4.0.0
+    pip install libvirt-python
     pip install lxml
     deactivate
 }
