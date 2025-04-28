@@ -127,9 +127,9 @@ install_kvm() {
     _blue "安装KVM（固定老版本）"
     _blue "Installing KVM"
     kvm_deps=(
-        qemu-kvm=1:2.11+dfsg-1ubuntu7.48
-        libvirt-daemon-system=4.0.0-1ubuntu8.19
-        libvirt-clients=4.0.0-1ubuntu8.19
+        qemu-kvm
+        libvirt-daemon-system
+        libvirt-clients
         bridge-utils
         sasl2-bin
     )
