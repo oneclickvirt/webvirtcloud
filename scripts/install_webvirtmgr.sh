@@ -209,7 +209,15 @@ install_python_deps() {
     _blue "Installing Python dependencies"
     source /var/www/webvirtmgr_env/bin/activate
     # pip install libvirt-python==4.0.0
-    pip install libvirt-python
+    version_full=$(apt-cache policy libvirt-daemon-system | grep Installed | awk '{print $2}')
+    version_pure=$(echo "$version_full" | cut -d'-' -f1)
+    if [ -z "$version_pure" ]; then
+      echo "未找到 libvirt 已安装版本！"
+      exit 1
+    fi
+    echo "检测到系统 libvirt 版本: $version_pure"
+    echo "正在安装 pip 包: libvirt-python==$version_pure"
+    pip install "libvirt-python==$version_pure"
     pip install lxml
     deactivate
 }
