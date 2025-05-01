@@ -182,6 +182,10 @@ check_python_version() {
 }
 
 install_python310() {
+    if command -v python3.10 &>/dev/null; then
+        _info "Python 3.10 is already installed." "Python 3.10 已经安装"
+        return 0
+    fi
     _info "Installing Python 3.10 from source..." "正在从源码安装Python 3.10..."
     if [[ "$OS_TYPE" == "debian" ]]; then
         for pkg in build-essential zlib1g-dev libncurses5-dev libgdbm-dev \
