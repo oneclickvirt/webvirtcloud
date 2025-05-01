@@ -376,8 +376,16 @@ clone_webvirtcloud() {
     sed -i "s/SECRET_KEY = \"\"/SECRET_KEY = \"${secret_key}\"/g" webvirtcloud/settings.py
     # https://github.com/retspen/webvirtcloud/issues/630
     sed -i "s|\(\['http://localhost'\)|\1, 'http://${IPV4}'|" webvirtcloud/settings.py
-    cp conf/supervisor/webvirtcloud.conf /etc/supervisor/conf.d/
-    sed -i "s/user=www-data/user=${webvirtmgr_user}/g" /etc/supervisor/conf.d/webvirtcloud.conf
+    if [ -d "/etc/supervisord.d" ]; then
+        SUPERVISOR_CONF_DIR="/etc/supervisord.d"
+    elif [ -d "/etc/supervisor/conf.d" ]; then
+        SUPERVISOR_CONF_DIR="/etc/supervisor/conf.d"
+    else
+        _red "✗ Supervisor 配置目录不存在"
+        exit 1
+    fi
+    cp conf/supervisor/webvirtcloud.conf $SUPERVISOR_CONF_DIR/
+    sed -i "s/user=www-data/user=${webvirtmgr_user}/g" $SUPERVISOR_CONF_DIR/webvirtcloud.conf
     mkdir -p /srv
     if [ -d "/srv/webvirtcloud" ]; then
         rm -rf /srv/webvirtcloud
