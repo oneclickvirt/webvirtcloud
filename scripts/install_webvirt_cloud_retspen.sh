@@ -232,7 +232,7 @@ install_dependencies() {
             "libxslt1-dev" "gcc" "pkg-config" "git" "virtualenv" "python3-virtualenv" "supervisor"
             "libsasl2-modules" "wget" "curl" "nginx" "qemu-kvm" "libvirt-daemon-system"
             "libvirt-clients" "bridge-utils" "virt-manager" "sasl2-bin" "libldap2-dev"
-            "libsasl2-dev" "lsb-release" "libsqlite3-dev" "libguestfs0" "libguestfs-tools" "python3-libguestfs")
+            "libsasl2-dev" "lsb-release" "libsqlite3-dev" "libguestfs0" "libguestfs-tools")
         for pkg in "${packages[@]}"; do
             _yellow "安装包: $pkg"
             $PKG_INSTALL $pkg
@@ -252,6 +252,7 @@ install_dependencies() {
                 _green "✓ 安装 python3-guestfs 成功"
             fi
         fi
+        $PKG_INSTALL python3-libguestfs || true
     else
         _yellow "安装包: epel-release"
         $PKG_INSTALL epel-release
@@ -285,7 +286,7 @@ install_dependencies() {
         packages=("sudo" "dmidecode" "python3" "python3-pip" "python3-devel" "libxml2-devel" "libxslt-devel" "gcc"
             "pkgconfig" "git" "supervisor" "wget" "curl" "nginx" "qemu-kvm"
             "libvirt" "libvirt-devel" "libvirt-client" "bridge-utils" "virt-manager" "cyrus-sasl-devel"
-            "openldap-devel" "sqlite-devel" "libguestfs" "libguestfs-tools" "python3-libguestfs")
+            "openldap-devel" "sqlite-devel" "libguestfs" "libguestfs-tools")
         for pkg in "${packages[@]}"; do
             _yellow "安装包: $pkg"
             $PKG_INSTALL $pkg
@@ -296,6 +297,7 @@ install_dependencies() {
                 _green "✓ 安装 $pkg 成功"
             fi
         done
+        $PKG_INSTALL python3-libguestfs || true
         _yellow "安装包: python3-virtualenv"
         $PKG_INSTALL python3-virtualenv
         if [ $? -ne 0 ]; then
