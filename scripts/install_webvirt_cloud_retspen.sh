@@ -610,6 +610,7 @@ restart_services() {
     sudo virsh net-autostart default || true
     sudo virsh net-start default || true
     sudo virsh net-list --all
+    supervisorctl status
 }
 
 configure_firewall() {
