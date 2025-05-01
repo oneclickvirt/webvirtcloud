@@ -232,7 +232,7 @@ install_dependencies() {
             "libxslt1-dev" "gcc" "pkg-config" "git" "virtualenv" "python3-virtualenv" "supervisor"
             "libsasl2-modules" "wget" "curl" "nginx" "qemu-kvm" "libvirt-daemon-system"
             "libvirt-clients" "bridge-utils" "virt-manager" "sasl2-bin" "libldap2-dev"
-            "libsasl2-dev" "lsb-release" "libsqlite3-dev")
+            "libsasl2-dev" "lsb-release" "libsqlite3-dev" "libguestfs0" "libguestfs-tools" "python3-libguestfs")
         for pkg in "${packages[@]}"; do
             _yellow "安装包: $pkg"
             $PKG_INSTALL $pkg
@@ -285,7 +285,7 @@ install_dependencies() {
         packages=("python3" "python3-pip" "python3-devel" "libxml2-devel" "libxslt-devel" "gcc"
             "pkgconfig" "git" "supervisor" "wget" "curl" "nginx" "qemu-kvm"
             "libvirt" "libvirt-devel" "libvirt-client" "bridge-utils" "virt-manager" "cyrus-sasl-devel"
-            "openldap-devel" "sqlite-devel")
+            "openldap-devel" "sqlite-devel" "libguestfs" "libguestfs-tools" "python3-libguestfs")
         for pkg in "${packages[@]}"; do
             _yellow "安装包: $pkg"
             $PKG_INSTALL $pkg
