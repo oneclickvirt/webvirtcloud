@@ -584,7 +584,7 @@ create_admin() {
 
 restart_services() {
     _yellow "重启相关服务..."
-    systemctl restart libvirtd
+    systemctl restart libvirtd || systemctl start libvirtd-tcp.socket
     if [ $? -ne 0 ]; then
         _red "✗ libvirtd重启失败，请检查日志"
         systemctl status libvirtd
