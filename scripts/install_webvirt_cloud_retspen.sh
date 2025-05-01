@@ -201,30 +201,89 @@ install_dependencies() {
     _info "Starting dependencies installation..." "开始安装依赖..."
     check_update
     if [[ "$OS_TYPE" == "debian" ]]; then
-        $PKG_INSTALL python3 python3-pip python3-dev python3-lxml libvirt-dev zlib1g-dev \
-            libxslt1-dev gcc pkg-config git virtualenv python3-virtualenv supervisor \
-            libsasl2-modules wget curl nginx qemu-kvm libvirt-daemon-system \
-            libvirt-clients bridge-utils virt-manager sasl2-bin libldap2-dev \
-            libsasl2-dev lsb-release libsqlite3-dev
+        packages=("python3" "python3-pip" "python3-dev" "python3-lxml" "libvirt-dev" "zlib1g-dev"
+            "libxslt1-dev" "gcc" "pkg-config" "git" "virtualenv" "python3-virtualenv" "supervisor"
+            "libsasl2-modules" "wget" "curl" "nginx" "qemu-kvm" "libvirt-daemon-system"
+            "libvirt-clients" "bridge-utils" "virt-manager" "sasl2-bin" "libldap2-dev"
+            "libsasl2-dev" "lsb-release" "libsqlite3-dev")
+        for pkg in "${packages[@]}"; do
+            _yellow "安装包: $pkg"
+            $PKG_INSTALL $pkg
+            if [ $? -ne 0 ]; then
+                _red "✗ 安装 $pkg 失败"
+                exit 1
+            else
+                _green "✓ 安装 $pkg 成功"
+            fi
+        done
         if [ -x "$(command -v apt-get)" ]; then
+            _yellow "安装包: python3-guestfs"
             $PKG_INSTALL python3-guestfs
+            if [ $? -ne 0 ]; then
+                _red "✗ 安装 python3-guestfs 失败"
+            else
+                _green "✓ 安装 python3-guestfs 成功"
+            fi
         fi
     else
+        # RHEL系安装
+        _yellow "安装包: epel-release"
         $PKG_INSTALL epel-release
-        if [[ "$OS" == "centos" && "$VER" == "7" ]]; then
-            yum install -y http://rpms.remirepo.net/enterprise/remi-release-7.rpm
-        fi
-        $PKG_INSTALL python3 python3-pip python3-devel libxml2-devel libxslt-devel gcc \
-            pkgconfig git python3-virtualenv supervisor wget curl nginx qemu-kvm \
-            libvirt libvirt-devel libvirt-client bridge-utils virt-manager cyrus-sasl-devel \
-            openldap-devel sqlite-devel
-        if ! id -u $SYS_USER &>/dev/null; then
-            useradd -r -s /sbin/nologin $SYS_USER
-        fi
-        if [[ "$OS" == "centos" && "$VER" == "7" ]]; then
-            systemctl enable supervisord
+        if [ $? -ne 0 ]; then
+            _red "✗ 安装 epel-release 失败"
+            exit 1
         else
+            _green "✓ 安装 epel-release 成功"
+        fi
+        if [[ "$OS" == "centos" && "$VER" == "7" ]]; then
+            _yellow "安装 remi 仓库"
+            yum install -y http://rpms.remirepo.net/enterprise/remi-release-7.rpm
+            if [ $? -ne 0 ]; then
+                _red "✗ 安装 remi 仓库失败"
+                exit 1
+            else
+                _green "✓ 安装 remi 仓库成功"
+            fi
+        fi
+        packages=("python3" "python3-pip" "python3-devel" "libxml2-devel" "libxslt-devel" "gcc"
+            "pkgconfig" "git" "python3-virtualenv" "supervisor" "wget" "curl" "nginx" "qemu-kvm"
+            "libvirt" "libvirt-devel" "libvirt-client" "bridge-utils" "virt-manager" "cyrus-sasl-devel"
+            "openldap-devel" "sqlite-devel")
+        for pkg in "${packages[@]}"; do
+            _yellow "安装包: $pkg"
+            $PKG_INSTALL $pkg
+            if [ $? -ne 0 ]; then
+                _red "✗ 安装 $pkg 失败"
+                exit 1
+            else
+                _green "✓ 安装 $pkg 成功"
+            fi
+        done
+        if ! id -u $SYS_USER &>/dev/null; then
+            _yellow "创建用户: $SYS_USER"
+            useradd -r -s /sbin/nologin $SYS_USER
+            if [ $? -ne 0 ]; then
+                _red "✗ 创建用户 $SYS_USER 失败"
+            else
+                _green "✓ 创建用户 $SYS_USER 成功"
+            fi
+        fi
+        if [[ "$OS" == "centos" && "$VER" == "7" ]]; then
+            _yellow "启用 supervisord 服务"
+            systemctl enable supervisord
+            if [ $? -ne 0 ]; then
+                _red "✗ 启用 supervisord 失败"
+            else
+                _green "✓ 启用 supervisord 成功"
+            fi
+        else
+            _yellow "启用 supervisor 服务"
             systemctl enable supervisor
+            if [ $? -ne 0 ]; then
+                _red "✗ 启用 supervisor 失败"
+            else
+                _green "✓ 启用 supervisor 成功"
+            fi
         fi
     fi
     _info "All dependencies installed" "所有依赖包安装完成"
