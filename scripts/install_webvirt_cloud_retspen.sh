@@ -304,7 +304,7 @@ install_dependencies() {
                 _green "✓ 创建用户 $SYS_USER 成功"
             fi
         fi
-        if [[ "$OS" == "centos" && "$VER" == "7" ]]; then
+        if [[ "$OS" != "debian" ]]; then
             _yellow "启用 supervisord 服务"
             systemctl enable supervisord
         else
