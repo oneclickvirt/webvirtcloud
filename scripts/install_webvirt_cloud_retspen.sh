@@ -448,7 +448,7 @@ setup_virtualenv() {
     if command -v python3.10 >/dev/null 2>&1 || command -v /usr/local/bin/python3.10 >/dev/null 2>&1; then
         _green "使用Python 3.10创建虚拟环境"
         python_cmd=$(command -v python3.10 || command -v /usr/local/bin/python3.10)
-        $python_cmd -m venv venv
+        $python_cmd -m venv venv || ($PKG_INSTALL python3.10-venv && $python_cmd -m venv venv)
     else
         _green "使用系统Python创建虚拟环境"
         if [[ "$OS_TYPE" == "rhel" ]]; then
