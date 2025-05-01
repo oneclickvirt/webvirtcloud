@@ -600,6 +600,8 @@ restart_services() {
         LIBVIRTD_CONF="/etc/sysconfig/libvirtd"
     elif [ -f /etc/default/libvirtd ]; then
         LIBVIRTD_CONF="/etc/default/libvirtd"
+    elif [ -f /etc/libvirt/libvirtd.conf ]; then
+        LIBVIRTD_CONF="/etc/libvirt/libvirtd.conf"
     else
         echo "libvirtd 配置文件未找到。" >&2
         exit 1
