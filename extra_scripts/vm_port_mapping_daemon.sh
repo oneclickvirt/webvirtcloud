@@ -1,15 +1,7 @@
 #!/bin/bash
 # https://github.com/oneclickvirt/webvirtcloud
 # 虚拟机端口映射守护进程(libvirtd)
-# 功能：
-# 1. 监控虚拟机状态，自动配置端口映射规则
-# 2. 持久化映射规则
-# 3. 根据IP地址自动计算映射端口
-# 4. 在虚拟机删除时自动清理规则
-# 5. 在宿主机重启后自动恢复规则
-# 6. 维护映射信息日志文件
 
-# 配置参数
 SCRIPT_PATH="/usr/local/sbin/vm_port_mapping_daemon.sh"
 MAPPING_FILE="/etc/vm_port_mapping/mapping.txt"
 MAPPING_DIR="/etc/vm_port_mapping"
@@ -20,7 +12,6 @@ PID_FILE="/var/run/vm_port_mapping.pid"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >>"$LOG_FILE"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
 check_already_running() {
@@ -162,13 +153,13 @@ apply_firewall_rules() {
     iptables -t nat -A PREROUTING -i "$PUBLIC_INTERFACE" -p tcp --dport "$ssh_port" -j DNAT --to-destination "$ip_address:22"
     iptables -t nat -A POSTROUTING -p tcp -d "$ip_address" --dport 22 -j MASQUERADE
     iptables -I INPUT -p tcp --dport "$ssh_port" -j ACCEPT
-    log "为虚拟机 $vm_name ($ip_address) 添加SSH端口映射: 公网端口 $ssh_port -> 内部端口 22"
+    log "为虚拟机 $vm_name 添加SSH端口映射: $ssh_port -> 22"
     for ((port = port_start; port <= port_end; port++)); do
         iptables -t nat -A PREROUTING -i "$PUBLIC_INTERFACE" -p tcp --dport "$port" -j DNAT --to-destination "$ip_address:$port"
         iptables -t nat -A POSTROUTING -p tcp -d "$ip_address" --dport "$port" -j MASQUERADE
         iptables -I INPUT -p tcp --dport "$port" -j ACCEPT
-        log "为虚拟机 $vm_name ($ip_address) 添加额外端口映射: 公网端口 $port -> 内部端口 $port"
     done
+    log "为虚拟机 $vm_name 添加端口映射: $port_start-$port_end"
     local rule_exists=false
     if ! firewall-cmd --permanent --query-forward-port="port=$ssh_port:proto=tcp:toport=22:toaddr=$ip_address" &>/dev/null; then
         firewall-cmd --permanent --add-forward-port="port=$ssh_port:proto=tcp:toport=22:toaddr=$ip_address" &>/dev/null
@@ -233,10 +224,10 @@ update_mapping_file() {
     if [ -s "$temp_file" ]; then
         mv "$temp_file" "$MAPPING_FILE"
         chmod 640 "$MAPPING_FILE"
-        log "映射文件已更新: $MAPPING_FILE"
+        log "映射文件已更新"
     else
         rm "$temp_file"
-        log "没有发现活动的虚拟机，映射文件未更新"
+        log "无活动虚拟机，映射文件未更新"
     fi
 }
 
@@ -249,7 +240,7 @@ apply_all_rules() {
             fi
         done <"$MAPPING_FILE"
     else
-        log "映射文件不存在或为空，没有规则需要应用"
+        log "映射文件不存在或为空，无需应用规则"
     fi
 }
 
@@ -258,12 +249,12 @@ check_and_restore_rules() {
         while read -r vm_name ip_address mac_address ssh_port port_start port_end; do
             if virsh list | grep -q "$vm_name"; then
                 if ! iptables-save | grep -q "$ip_address:22"; then
-                    log "检测到虚拟机 $vm_name 的规则丢失，正在恢复..."
+                    log "虚拟机 $vm_name 规则丢失，正在恢复"
                     apply_firewall_rules "$vm_name" "$ip_address" "$mac_address" "$ssh_port" "$port_start" "$port_end"
                 fi
             else
                 if ! virsh list --all | grep -q "$vm_name"; then
-                    log "虚拟机 $vm_name 已被删除，清理相关规则"
+                    log "虚拟机 $vm_name 已删除，清理规则"
                     clean_firewall_rules "$ip_address"
                     sed -i "/^$vm_name /d" "$MAPPING_FILE"
                 fi
@@ -275,8 +266,7 @@ check_and_restore_rules() {
 monitor_vm_changes() {
     local previous_vms=""
     local current_vms=""
-
-    log "开始监控虚拟机状态变化..."
+    log "开始监控虚拟机状态变化"
     while true; do
         current_vms=$(virsh list --all | grep -v "Id.*Name.*State" | sort | tr '\n' ' ')
         if [ "$current_vms" != "$previous_vms" ]; then
@@ -294,7 +284,6 @@ run_daemon() {
     if check_already_running; then
         exit 0
     fi
-
     create_pid_file
     log "启动虚拟机端口映射守护进程"
     initialize_mapping_file
@@ -303,12 +292,10 @@ run_daemon() {
 }
 
 create_systemd_service() {
-    # 检查服务是否已经存在
     if [ -f "/etc/systemd/system/vm-port-mapping.service" ]; then
         log "服务已存在，跳过创建"
         return
     fi
-
     cat >/etc/systemd/system/vm-port-mapping.service <<EOF
 [Unit]
 Description=VM Port Mapping Daemon
