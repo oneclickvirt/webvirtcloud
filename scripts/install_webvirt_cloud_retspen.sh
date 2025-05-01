@@ -382,14 +382,51 @@ clone_webvirtcloud() {
     sed -i "s|\(\['http://localhost'\)|\1, 'http://${IPV4}'|" webvirtcloud/settings.py
     if [ -d "/etc/supervisord.d" ]; then
         SUPERVISOR_CONF_DIR="/etc/supervisord.d"
+        # 为 AlmaLinux 添加特殊处理
+        if grep -qi "almalinux" /etc/os-release || grep -qi "rocky" /etc/os-release || grep -qi "centos" /etc/os-release || grep -qi "rhel" /etc/os-release; then
+            if [ -f "/etc/supervisord.conf" ]; then
+                if ! grep -q "\[program:webvirtcloud\]" /etc/supervisord.conf; then
+                    cat >>/etc/supervisord.conf <<EOF
+[program:webvirtcloud]
+command=/srv/webvirtcloud/venv/bin/gunicorn webvirtcloud.wsgi:application -c /srv/webvirtcloud/gunicorn.conf.py
+directory=/srv/webvirtcloud
+user=${webvirtmgr_user}
+autostart=true
+autorestart=true
+redirect_stderr=true
+
+[program:novncd]
+command=/srv/webvirtcloud/venv/bin/python3 /srv/webvirtcloud/console/novncd
+directory=/srv/webvirtcloud
+user=${webvirtmgr_user}
+autostart=true
+autorestart=true
+redirect_stderr=true
+EOF
+                    _green "✓ 已将 supervisor 程序配置添加到 /etc/supervisord.conf"
+                    _green "✓ Supervisor program configuration added to /etc/supervisord.conf"
+                else
+                    _yellow "Supervisor 配置已存在，跳过添加"
+                    _yellow "Supervisor configuration already exists, skipping addition"
+                fi
+            else
+                _red "✗ /etc/supervisord.conf 文件不存在"
+                _red "✗ /etc/supervisord.conf file does not exist"
+                exit 1
+            fi
+        else
+            cp conf/supervisor/webvirtcloud.conf $SUPERVISOR_CONF_DIR/
+            sed -i "s/user=www-data/user=${webvirtmgr_user}/g" $SUPERVISOR_CONF_DIR/webvirtcloud.conf
+        fi
     elif [ -d "/etc/supervisor/conf.d" ]; then
         SUPERVISOR_CONF_DIR="/etc/supervisor/conf.d"
+        cp conf/supervisor/webvirtcloud.conf $SUPERVISOR_CONF_DIR/
+        sed -i "s/user=www-data/user=${webvirtmgr_user}/g" $SUPERVISOR_CONF_DIR/webvirtcloud.conf
     else
         _red "✗ Supervisor 配置目录不存在"
+        _red "✗ Supervisor configuration directory does not exist"
         exit 1
     fi
-    cp conf/supervisor/webvirtcloud.conf $SUPERVISOR_CONF_DIR/
-    sed -i "s/user=www-data/user=${webvirtmgr_user}/g" $SUPERVISOR_CONF_DIR/webvirtcloud.conf
     mkdir -p /srv
     if [ -d "/srv/webvirtcloud" ]; then
         rm -rf /srv/webvirtcloud
