@@ -458,14 +458,22 @@ configure_gstfsd() {
     _yellow "配置gstfsd服务..."
     cp /srv/webvirtcloud/conf/daemon/gstfsd /usr/local/bin/gstfsd
     chmod +x /usr/local/bin/gstfsd
+    if [ -d "/etc/supervisord.d" ]; then
+        SUPERVISOR_CONF_DIR="/etc/supervisord.d"
+    elif [ -d "/etc/supervisor/conf.d" ]; then
+        SUPERVISOR_CONF_DIR="/etc/supervisor/conf.d"
+    else
+        _red "✗ Supervisor 配置目录不存在"
+        exit 1
+    fi
     if [[ "$OS_TYPE" == "debian" ]]; then
-        cp /srv/webvirtcloud/conf/supervisor/gstfsd.conf /etc/supervisor/conf.d/gstfsd.conf
+        cp /srv/webvirtcloud/conf/supervisor/gstfsd.conf $SUPERVISOR_CONF_DIR/gstfsd.conf
     else
         if [[ "$OS" == "centos" && "$VER" == "7" ]]; then
             cp /srv/webvirtcloud/conf/supervisor/gstfsd.conf /etc/supervisord.d/gstfsd.ini
         else
-            mkdir -p /etc/supervisor/conf.d/
-            cp /srv/webvirtcloud/conf/supervisor/gstfsd.conf /etc/supervisor/conf.d/gstfsd.conf
+            mkdir -p $SUPERVISOR_CONF_DIR
+            cp /srv/webvirtcloud/conf/supervisor/gstfsd.conf $SUPERVISOR_CONF_DIR/gstfsd.conf
         fi
     fi
     _green "✓ gstfsd配置完成"
@@ -542,7 +550,7 @@ restart_services() {
     else
         _green "✓ libvirtd重启成功"
     fi
-    if [[ "$OS" == "centos" && "$VER" == "7" ]]; then
+    if [[ "$OS" != "debian" ]]; then
         systemctl restart supervisord
         if [ $? -ne 0 ]; then
             _red "✗ supervisord重启失败，请检查日志"
