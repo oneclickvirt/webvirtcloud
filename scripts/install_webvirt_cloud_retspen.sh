@@ -1,7 +1,7 @@
 #!/bin/bash
 # https://github.com/oneclickvirt/webvirtcloud
 # For https://github.com/retspen/webvirtcloud
-# 2025.04.28
+# 2025.05.01
 
 ###########################################
 # Initialization and Environment Variables
@@ -464,6 +464,8 @@ restart_services() {
         _green "✓ nginx restart successful"
         _green "✓ nginx重启成功"
     fi
+    sudo virsh net-autostart default
+    sudo virsh net-list --all
 }
 
 # Configure firewall
