@@ -479,6 +479,9 @@ configure_libvirt() {
     _yellow "配置libvirt..."
     usermod -aG libvirt $webvirtmgr_user
     usermod -aG kvm $webvirtmgr_user
+    if [ ! -f "/etc/libvirt/qemu.conf" ]; then
+        return 1
+    fi
     if [[ "$OS_TYPE" == "debian" ]]; then
         sed -i 's/libvirtd_opts="-d"/libvirtd_opts="-d -l"/g' /etc/default/libvirtd 2>/dev/null || echo 'libvirtd_opts="-d -l"' >>/etc/default/libvirtd
     else
@@ -491,6 +494,12 @@ configure_libvirt() {
     sed -i 's/#auth_tcp/auth_tcp/g' /etc/libvirt/libvirtd.conf
     sed -i 's/#[ ]*vnc_listen.*/vnc_listen = "0.0.0.0"/g' /etc/libvirt/qemu.conf
     sed -i 's/#[ ]*spice_listen.*/spice_listen = "0.0.0.0"/g' /etc/libvirt/qemu.conf
+    if ! grep -qE '^ *user *= *"root"' "/etc/libvirt/qemu.conf"; then
+        echo 'user = "root"' >> "/etc/libvirt/qemu.conf"
+    fi
+    if ! grep -qE '^ *group *= *"root"' "/etc/libvirt/qemu.conf"; then
+        echo 'group = "root"' >> "/etc/libvirt/qemu.conf"
+    fi
     _green "✓ libvirt配置完成"
 }
 
