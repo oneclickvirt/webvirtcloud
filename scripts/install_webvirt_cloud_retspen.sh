@@ -526,6 +526,10 @@ configure_gstfsd() {
 
 configure_nginx() {
     _yellow "配置Nginx..."
+    sudo sed -i \
+        -e "s/^[[:space:]]*listen[[:space:]]\+80[[:space:]]\+default_server;/    listen 80;/" \
+        -e "s/^[[:space:]]*listen[[:space:]]\+\[::\]:80[[:space:]]\+default_server;/    listen [::]:80;/" \
+        /etc/nginx/nginx.conf
     if [[ "$OS_TYPE" == "debian" ]]; then
         nginx_config="/etc/nginx/sites-available/webvirtcloud"
         mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
@@ -535,25 +539,27 @@ configure_nginx() {
     fi
     cat >"$nginx_config" <<EOF
 # WebVirtCloud
+upstream wsnovncd {
+    server 127.0.0.1:6080;
+}
 server {
-    listen 80;
-    #server_name webvirtcloud.example.com;
-    #access_log /var/log/nginx/webvirtcloud-access_log; 
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
     location /static/ {
         root /srv/webvirtcloud;
         expires max;
     }
     location / {
         proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-for \$proxy_add_x_forwarded_for;
-        proxy_set_header Host \$host:\$server_port;
-        proxy_set_header X-Forwarded-Proto \$remote_addr;
-        proxy_set_header X-Forwarded-Ssl off;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        client_max_body_size 1024M;
         proxy_connect_timeout 1800;
         proxy_read_timeout 1800;
         proxy_send_timeout 1800;
-        client_max_body_size 1024M;
     }
     location /novncd/ {
         proxy_pass http://wsnovncd;
@@ -561,9 +567,6 @@ server {
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
     }
-}
-upstream wsnovncd {
-      server 127.0.0.1:6080;
 }
 EOF
     if [[ "$OS_TYPE" == "debian" ]]; then
@@ -573,8 +576,11 @@ EOF
     if [[ "$OS_TYPE" == "rhel" ]]; then
         chown -R $webvirtmgr_user:$webvirtmgr_group /var/lib/nginx
         setsebool -P httpd_can_network_connect 1
+        semanage fcontext -a -t httpd_sys_content_t "/srv/webvirtcloud(/.*)?"
+        restorecon -R /srv/webvirtcloud
     fi
     systemctl enable nginx
+    nginx -t && systemctl reload nginx
     _green "✓ Nginx配置完成"
 }
 
