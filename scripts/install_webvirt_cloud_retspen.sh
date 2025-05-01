@@ -173,11 +173,23 @@ check_python_version() {
 install_python310() {
     _info "Installing Python 3.10 from source..." "正在从源码安装Python 3.10..."
     if [[ "$OS_TYPE" == "debian" ]]; then
-        $PKG_INSTALL build-essential zlib1g-dev libncurses5-dev libgdbm-dev \
-            libnss3-dev libssl-dev libreadline-dev libffi-dev wget
+        for pkg in build-essential zlib1g-dev libncurses5-dev libgdbm-dev \
+            libnss3-dev libssl-dev libreadline-dev libffi-dev wget; do
+            _info "Installing package: $pkg" "正在安装依赖包：$pkg"
+            if ! $PKG_INSTALL "$pkg"; then
+                _red "✗ Failed to install $pkg" "✗ 安装失败：$pkg"
+                exit 1
+            fi
+        done
     else
-        $PKG_INSTALL gcc make zlib-devel bzip2 bzip2-devel readline-devel sqlite sqlite-devel \
-            openssl-devel tk-devel libffi-devel xz-devel wget
+        for pkg in gcc make zlib-devel bzip2 bzip2-devel readline-devel sqlite sqlite-devel \
+            openssl-devel tk-devel libffi-devel xz-devel wget; do
+            _info "Installing package: $pkg" "正在安装依赖包：$pkg"
+            if ! $PKG_INSTALL "$pkg"; then
+                _red "✗ Failed to install $pkg" "✗ 安装失败：$pkg"
+                exit 1
+            fi
+        done
     fi
     cd /tmp
     wget https://www.python.org/ftp/python/3.10.13/Python-3.10.13.tgz
