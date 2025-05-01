@@ -228,7 +228,7 @@ install_dependencies() {
     _info "Starting dependencies installation..." "开始安装依赖..."
     check_update
     if [[ "$OS_TYPE" == "debian" ]]; then
-        packages=("python3" "python3-pip" "python3-dev" "python3-lxml" "libvirt-dev" "zlib1g-dev"
+        packages=("sudo" "python3" "python3-pip" "python3-dev" "python3-lxml" "libvirt-dev" "zlib1g-dev"
             "libxslt1-dev" "gcc" "pkg-config" "git" "virtualenv" "python3-virtualenv" "supervisor"
             "libsasl2-modules" "wget" "curl" "nginx" "qemu-kvm" "libvirt-daemon-system"
             "libvirt-clients" "bridge-utils" "virt-manager" "sasl2-bin" "libldap2-dev"
@@ -282,7 +282,7 @@ install_dependencies() {
                 _green "✓ 安装 remi 仓库成功"
             fi
         fi
-        packages=("python3" "python3-pip" "python3-devel" "libxml2-devel" "libxslt-devel" "gcc"
+        packages=("sudo" "python3" "python3-pip" "python3-devel" "libxml2-devel" "libxslt-devel" "gcc"
             "pkgconfig" "git" "supervisor" "wget" "curl" "nginx" "qemu-kvm"
             "libvirt" "libvirt-devel" "libvirt-client" "bridge-utils" "virt-manager" "cyrus-sasl-devel"
             "openldap-devel" "sqlite-devel" "libguestfs" "libguestfs-tools" "python3-libguestfs")
@@ -382,7 +382,6 @@ clone_webvirtcloud() {
     sed -i "s|\(\['http://localhost'\)|\1, 'http://${IPV4}'|" webvirtcloud/settings.py
     if [ -d "/etc/supervisord.d" ]; then
         SUPERVISOR_CONF_DIR="/etc/supervisord.d"
-        # 为 AlmaLinux 添加特殊处理
         if grep -qi "almalinux" /etc/os-release || grep -qi "rocky" /etc/os-release || grep -qi "centos" /etc/os-release || grep -qi "rhel" /etc/os-release; then
             if [ -f "/etc/supervisord.conf" ]; then
                 if ! grep -q "\[program:webvirtcloud\]" /etc/supervisord.conf; then
@@ -610,7 +609,7 @@ restart_services() {
     sudo virsh net-autostart default || true
     sudo virsh net-start default || true
     sudo virsh net-list --all
-    supervisorctl status
+    sudo supervisorctl status
 }
 
 configure_firewall() {
