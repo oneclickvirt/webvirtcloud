@@ -16,14 +16,33 @@ MAPPING_DIR="/etc/vm_port_mapping"
 PUBLIC_INTERFACE=$(ls /sys/class/net/ | grep -E '^(eth|en|eno|ens|enp)' | grep -v lo | head -n 1)
 SLEEP_INTERVAL=60 # 监控间隔（秒）
 LOG_FILE="/var/log/vm_port_mapping.log"
+PID_FILE="/var/run/vm_port_mapping.pid"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >>"$LOG_FILE"
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
+check_already_running() {
+    if [ -f "$PID_FILE" ]; then
+        local pid=$(cat "$PID_FILE")
+        if ps -p "$pid" >/dev/null 2>&1; then
+            log "守护进程已经在运行中，PID: $pid"
+            return 0
+        else
+            log "发现过期的PID文件，将重新启动"
+            rm -f "$PID_FILE"
+        fi
+    fi
+    return 1
+}
+
+create_pid_file() {
+    echo $$ >"$PID_FILE"
+    log "创建PID文件: $PID_FILE, PID: $$"
+}
+
 initialize_mapping_file() {
-    # 创建映射目录
     if [ ! -d "$MAPPING_DIR" ]; then
         mkdir -p "$MAPPING_DIR"
         chmod 750 "$MAPPING_DIR"
@@ -256,6 +275,8 @@ check_and_restore_rules() {
 monitor_vm_changes() {
     local previous_vms=""
     local current_vms=""
+
+    log "开始监控虚拟机状态变化..."
     while true; do
         current_vms=$(virsh list --all | grep -v "Id.*Name.*State" | sort | tr '\n' ' ')
         if [ "$current_vms" != "$previous_vms" ]; then
@@ -269,7 +290,12 @@ monitor_vm_changes() {
     done
 }
 
-main() {
+run_daemon() {
+    if check_already_running; then
+        exit 0
+    fi
+
+    create_pid_file
     log "启动虚拟机端口映射守护进程"
     initialize_mapping_file
     apply_all_rules
@@ -277,6 +303,12 @@ main() {
 }
 
 create_systemd_service() {
+    # 检查服务是否已经存在
+    if [ -f "/etc/systemd/system/vm-port-mapping.service" ]; then
+        log "服务已存在，跳过创建"
+        return
+    fi
+
     cat >/etc/systemd/system/vm-port-mapping.service <<EOF
 [Unit]
 Description=VM Port Mapping Daemon
@@ -285,7 +317,7 @@ Wants=firewalld.service
 
 [Service]
 Type=simple
-ExecStart=$SCRIPT_PATH
+ExecStart=$SCRIPT_PATH run
 Restart=on-failure
 RestartSec=5
 
@@ -300,7 +332,29 @@ EOF
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    cp "${BASH_SOURCE[0]}" "$SCRIPT_PATH"
-    chmod 755 "$SCRIPT_PATH"
-    create_systemd_service
+    case "$1" in
+    install)
+        # 安装模式：复制脚本并创建服务
+        if [ ! -f "$SCRIPT_PATH" ] || [ "$(realpath "${BASH_SOURCE[0]}")" != "$(realpath "$SCRIPT_PATH")" ]; then
+            cp "${BASH_SOURCE[0]}" "$SCRIPT_PATH"
+            chmod 755 "$SCRIPT_PATH"
+            log "脚本已复制到 $SCRIPT_PATH"
+        fi
+        create_systemd_service
+        ;;
+    run)
+        # 运行模式：直接启动守护进程
+        run_daemon
+        ;;
+    *)
+        # 默认模式：如果是第一次运行则安装，否则运行
+        if [ "$(realpath "${BASH_SOURCE[0]}")" != "$(realpath "$SCRIPT_PATH")" ]; then
+            # 不是从安装位置运行，执行安装
+            "$0" install
+        else
+            # 从安装位置运行，执行守护进程
+            "$0" run
+        fi
+        ;;
+    esac
 fi
