@@ -155,17 +155,28 @@ statistics_of_run_times() {
 check_python_version() {
     _info "Checking Python version..." "检查Python版本..."
     if command -v python3 >/dev/null 2>&1; then
-        python_version=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
-        _info "System Python version: $python_version" "系统Python版本: $python_version"
-        if dpkg --compare-versions "$python_version" ge "3.10" 2>/dev/null || python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)" 2>/dev/null; then
-            _info "✓ System Python version meets requirements, skipping Python 3.10 installation" "✓ 系统Python版本已满足要求，跳过Python 3.10安装"
-            return 0
+        python_exec=python3
+    elif command -v python >/dev/null 2>&1; then
+        _info "python3 not found, trying 'python'..." "未找到 python3，尝试使用 'python'..."
+        if python -c 'import sys; exit(0) if sys.version_info.major == 3 else exit(1)' 2>/dev/null; then
+            _info "'python' is Python 3.x, creating symlink to 'python3'..." "'python' 是 Python 3，创建符号链接到 'python3'..."
+            ln -sf "$(command -v python)" /usr/local/bin/python3
+            python_exec=python3
         else
-            _info "System Python version is lower than 3.10, need to install Python 3.10" "系统Python版本低于3.10，需要安装Python 3.10"
+            _info "'python' is not Python 3.x, cannot use it" "'python' 不是 Python 3.x，无法使用"
             return 1
         fi
     else
-        _info "Python3 not detected, need to install Python 3.10" "未检测到Python3，需要安装Python 3.10"
+        _info "Neither python3 nor python found, need to install Python 3.10" "未找到 python3 或 python，需要安装 Python 3.10"
+        return 1
+    fi
+    python_version=$($python_exec -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
+    _info "System Python version: $python_version" "系统Python版本: $python_version"
+    if $python_exec -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'; then
+        _info "✓ System Python version meets requirements, skipping Python 3.10 installation" "✓ 系统Python版本已满足要求，跳过Python 3.10安装"
+        return 0
+    else
+        _info "System Python version is lower than 3.10, need to install Python 3.10" "系统Python版本低于3.10，需要安装Python 3.10"
         return 1
     fi
 }
