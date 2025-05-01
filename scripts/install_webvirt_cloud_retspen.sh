@@ -416,11 +416,15 @@ EOF
         else
             cp conf/supervisor/webvirtcloud.conf $SUPERVISOR_CONF_DIR/
             sed -i "s/user=www-data/user=${webvirtmgr_user}/g" $SUPERVISOR_CONF_DIR/webvirtcloud.conf
+            cp conf/supervisor/webvirtcloud.conf $SUPERVISOR_CONF_DIR/webvirtcloud.ini
+            sed -i "s/user=www-data/user=${webvirtmgr_user}/g" $SUPERVISOR_CONF_DIR/webvirtcloud.ini
         fi
     elif [ -d "/etc/supervisor/conf.d" ]; then
         SUPERVISOR_CONF_DIR="/etc/supervisor/conf.d"
         cp conf/supervisor/webvirtcloud.conf $SUPERVISOR_CONF_DIR/
         sed -i "s/user=www-data/user=${webvirtmgr_user}/g" $SUPERVISOR_CONF_DIR/webvirtcloud.conf
+        cp conf/supervisor/webvirtcloud.conf $SUPERVISOR_CONF_DIR/webvirtcloud.ini
+        sed -i "s/user=www-data/user=${webvirtmgr_user}/g" $SUPERVISOR_CONF_DIR/webvirtcloud.ini
     else
         _red "✗ Supervisor 配置目录不存在"
         _red "✗ Supervisor configuration directory does not exist"
@@ -516,6 +520,7 @@ configure_gstfsd() {
         exit 1
     fi
     cp /srv/webvirtcloud/conf/supervisor/gstfsd.conf $SUPERVISOR_CONF_DIR/gstfsd.conf
+    cp /srv/webvirtcloud/conf/supervisor/gstfsd.conf $SUPERVISOR_CONF_DIR/gstfsd.ini
     _green "✓ gstfsd配置完成"
 }
 
