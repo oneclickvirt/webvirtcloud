@@ -246,7 +246,7 @@ install_dependencies() {
             fi
         fi
         packages=("python3" "python3-pip" "python3-devel" "libxml2-devel" "libxslt-devel" "gcc"
-            "pkgconfig" "git" "python3-virtualenv" "supervisor" "wget" "curl" "nginx" "qemu-kvm"
+            "pkgconfig" "git" "supervisor" "wget" "curl" "nginx" "qemu-kvm"
             "libvirt" "libvirt-devel" "libvirt-client" "bridge-utils" "virt-manager" "cyrus-sasl-devel"
             "openldap-devel" "sqlite-devel")
         for pkg in "${packages[@]}"; do
@@ -259,6 +259,21 @@ install_dependencies() {
                 _green "✓ 安装 $pkg 成功"
             fi
         done
+        # 单独尝试安装 python3-virtualenv，失败则用 pip 安装 virtualenv
+        _yellow "安装包: python3-virtualenv"
+        $PKG_INSTALL python3-virtualenv
+        if [ $? -ne 0 ]; then
+            _red "✗ 安装 python3-virtualenv 失败，尝试使用 pip 安装 virtualenv"
+            pip3 install virtualenv
+            if [ $? -ne 0 ]; then
+                _red "✗ pip 安装 virtualenv 也失败"
+                exit 1
+            else
+                _green "✓ pip 安装 virtualenv 成功"
+            fi
+        else
+            _green "✓ 安装 python3-virtualenv 成功"
+        fi
         if ! id -u $SYS_USER &>/dev/null; then
             _yellow "创建用户: $SYS_USER"
             useradd -r -s /sbin/nologin $SYS_USER
