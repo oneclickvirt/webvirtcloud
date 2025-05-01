@@ -599,10 +599,10 @@ configure_firewall() {
 }
 
 show_completion() {
-    _green "WebVirtCloud 安装完成!"
-    _yellow "访问地址: http://$IPV4"
-    _yellow "默认用户名: admin"
-    _yellow "默认密码: admin"
+    _green "WebVirtCloud 安装完成! / WebVirtCloud installation completed!"
+    _yellow "访问地址: http://$IPV4 / Access URL: http://$IPV4"
+    _yellow "默认用户名: admin / Default username: admin"
+    _yellow "默认密码: admin / Default password: admin"
 }
 
 main() {

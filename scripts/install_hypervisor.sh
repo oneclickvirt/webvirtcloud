@@ -408,10 +408,10 @@ extract_webvirtcloud_token() {
         token=$(awk -F ' *= *' '/^\[daemon\]/{f=1} f && $1=="token"{print $2; exit}' "$config_file")
         if [[ -n "$token" ]]; then
             _green "Installation complete! WebVirtCloud compute node has been successfully deployed."
-            _green "安装完成！WebVirtCloud计算节点已成功部署。"
             _green "From $config_file"
-            _green "来自 $config_file"
             _green "Daemon token: $token"
+            _green "安装完成！WebVirtCloud计算节点已成功部署。"
+            _green "来自 $config_file"
             _green "守护进程令牌: $token"
         else
             _red "Token not found in [daemon] section. File: $config_file"
