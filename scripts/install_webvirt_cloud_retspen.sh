@@ -470,16 +470,7 @@ configure_gstfsd() {
         _red "✗ Supervisor 配置目录不存在"
         exit 1
     fi
-    if [[ "$OS_TYPE" == "debian" ]]; then
-        cp /srv/webvirtcloud/conf/supervisor/gstfsd.conf $SUPERVISOR_CONF_DIR/gstfsd.conf
-    else
-        if [[ "$OS" == "centos" && "$VER" == "7" ]]; then
-            cp /srv/webvirtcloud/conf/supervisor/gstfsd.conf /etc/supervisord.d/gstfsd.ini
-        else
-            mkdir -p $SUPERVISOR_CONF_DIR
-            cp /srv/webvirtcloud/conf/supervisor/gstfsd.conf $SUPERVISOR_CONF_DIR/gstfsd.conf
-        fi
-    fi
+    cp /srv/webvirtcloud/conf/supervisor/gstfsd.conf $SUPERVISOR_CONF_DIR/gstfsd.conf
     _green "✓ gstfsd配置完成"
 }
 
