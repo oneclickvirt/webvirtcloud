@@ -226,7 +226,6 @@ install_dependencies() {
             fi
         fi
     else
-        # RHEL系安装
         _yellow "安装包: epel-release"
         $PKG_INSTALL epel-release
         if [ $? -ne 0 ]; then
@@ -234,6 +233,17 @@ install_dependencies() {
             exit 1
         else
             _green "✓ 安装 epel-release 成功"
+        fi
+        if grep -qi "almalinux" /etc/os-release; then
+            alma_ver=$(grep -oP '(?<=VERSION_ID=")[0-9]+' /etc/os-release)
+            if [[ "$alma_ver" == "8" ]]; then
+                _yellow "启用 powertools 仓库 (AlmaLinux 8)"
+                dnf config-manager --set-enabled powertools
+            elif [[ "$alma_ver" == "9" ]]; then
+                _yellow "启用 crb 仓库 (AlmaLinux 9)"
+                dnf config-manager --set-enabled crb
+            fi
+            dnf makecache
         fi
         if [[ "$OS" == "centos" && "$VER" == "7" ]]; then
             _yellow "安装 remi 仓库"
@@ -259,7 +269,6 @@ install_dependencies() {
                 _green "✓ 安装 $pkg 成功"
             fi
         done
-        # 单独尝试安装 python3-virtualenv，失败则用 pip 安装 virtualenv
         _yellow "安装包: python3-virtualenv"
         $PKG_INSTALL python3-virtualenv
         if [ $? -ne 0 ]; then
@@ -286,19 +295,9 @@ install_dependencies() {
         if [[ "$OS" == "centos" && "$VER" == "7" ]]; then
             _yellow "启用 supervisord 服务"
             systemctl enable supervisord
-            if [ $? -ne 0 ]; then
-                _red "✗ 启用 supervisord 失败"
-            else
-                _green "✓ 启用 supervisord 成功"
-            fi
         else
             _yellow "启用 supervisor 服务"
             systemctl enable supervisor
-            if [ $? -ne 0 ]; then
-                _red "✗ 启用 supervisor 失败"
-            else
-                _green "✓ 启用 supervisor 成功"
-            fi
         fi
     fi
     _info "All dependencies installed" "所有依赖包安装完成"
