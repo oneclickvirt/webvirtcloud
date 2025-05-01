@@ -578,8 +578,8 @@ restart_services() {
     else
         _green "✓ nginx重启成功"
     fi
-    sudo virsh net-autostart default
-    sudo virsh net-start default
+    sudo virsh net-autostart default || true
+    sudo virsh net-start default || true
     sudo virsh net-list --all
 }
 
