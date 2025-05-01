@@ -584,7 +584,23 @@ create_admin() {
 
 restart_services() {
     _yellow "重启相关服务..."
-    systemctl restart libvirtd || systemctl start libvirtd-tcp.socket
+    if [ -f /etc/sysconfig/libvirtd ]; then
+        LIBVIRTD_CONF="/etc/sysconfig/libvirtd"
+    elif [ -f /etc/default/libvirtd ]; then
+        LIBVIRTD_CONF="/etc/default/libvirtd"
+    else
+        echo "libvirtd 配置文件未找到。" >&2
+        exit 1
+    fi
+    echo "使用的配置文件路径：$LIBVIRTD_CONF"
+    systemctl restart libvirtd || \
+    { \
+      systemctl mask libvirtd.socket libvirtd-tcp.socket libvirtd-tls.socket libvirtd-ro.socket libvirtd-admin.socket; \
+      sed -i '/^LIBVIRTD_ARGS=/d' "$LIBVIRTD_CONF"; \
+      echo 'LIBVIRTD_ARGS="--listen"' >> "$LIBVIRTD_CONF"; \
+      systemctl daemon-reload; \
+      systemctl restart libvirtd; \
+    }
     if [ $? -ne 0 ]; then
         _red "✗ libvirtd重启失败，请检查日志"
         systemctl status libvirtd
