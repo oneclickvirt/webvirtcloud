@@ -524,6 +524,7 @@ EOF
         chown -R $webvirtmgr_user:$webvirtmgr_group /var/lib/nginx
         setsebool -P httpd_can_network_connect 1
     fi
+    systemctl enable nginx
     _green "✓ Nginx配置完成"
 }
 
