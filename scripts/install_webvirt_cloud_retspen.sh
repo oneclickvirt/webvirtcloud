@@ -580,7 +580,8 @@ EOF
         restorecon -R /srv/webvirtcloud
     fi
     systemctl enable nginx
-    nginx -t && systemctl reload nginx
+    nginx -t 
+    systemctl start nginx
     _green "✓ Nginx配置完成"
 }
 
