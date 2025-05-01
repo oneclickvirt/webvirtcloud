@@ -623,23 +623,7 @@ restart_services() {
     else
         _green "✓ libvirtd重启成功"
     fi
-    if [[ "$OS" != "debian" ]]; then
-        systemctl restart supervisord
-        if [ $? -ne 0 ]; then
-            _red "✗ supervisord重启失败，请检查日志"
-            systemctl status supervisord
-        else
-            _green "✓ supervisord重启成功"
-        fi
-    else
-        systemctl restart supervisor
-        if [ $? -ne 0 ]; then
-            _red "✗ supervisor重启失败，请检查日志"
-            systemctl status supervisor
-        else
-            _green "✓ supervisor重启成功"
-        fi
-    fi
+    systemctl restart supervisord || systemctl restart supervisor
     systemctl restart nginx
     if [ $? -ne 0 ]; then
         _red "✗ nginx重启失败，请检查日志"
