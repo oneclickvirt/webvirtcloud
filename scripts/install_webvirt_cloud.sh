@@ -1,7 +1,7 @@
 #!/bin/bash
 # https://github.com/oneclickvirt/webvirtcloud
 # For https://github.com/webvirtcloud/webvirtcloud
-# 2025.04.18
+# 2025.05.02
 
 ###########################################
 # 初始化和环境变量设置
@@ -9,8 +9,6 @@
 set -e
 export DEBIAN_FRONTEND=noninteractive
 cd /root >/dev/null 2>&1
-
-# 设置UTF-8语言环境
 setup_locale() {
     utf8_locale=$(locale -a 2>/dev/null | grep -i -m 1 -E "UTF-8|utf8")
     if [[ -z "$utf8_locale" ]]; then
@@ -23,7 +21,6 @@ setup_locale() {
     fi
 }
 
-# 检查是否为root用户
 check_root() {
     if [ "$(id -u)" != "0" ]; then
         _red "This script must be run as root" 1>&2
@@ -31,7 +28,6 @@ check_root() {
     fi
 }
 
-# 系统变量初始化
 init_system_vars() {
     temp_file_apt_fix="/tmp/apt_fix.txt"
     REGEX=("debian" "ubuntu" "centos|red hat|kernel|oracle linux|alma|rocky" "'amazon linux'" "fedora" "arch")
@@ -61,15 +57,12 @@ statistics_of_run_times() {
 ###########################################
 # 辅助函数模块
 ###########################################
-
-# 彩色输出函数
 _red() { echo -e "\033[31m\033[01m$@\033[0m"; }
 _green() { echo -e "\033[32m\033[01m$@\033[0m"; }
 _yellow() { echo -e "\033[33m\033[01m$@\033[0m"; }
 _blue() { echo -e "\033[36m\033[01m$@\033[0m"; }
 reading() { read -rp "$(_green "$1")" "$2"; }
 
-# 检查并更新包管理器
 check_update() {
     _yellow "Updating package repositories"
     _yellow "更新包管理源"
@@ -77,7 +70,6 @@ check_update() {
         distro=""
         codename=""
         is_archive=false
-        # 识别系统版本
         if grep -qi debian /etc/os-release; then
             distro="debian"
             debian_ver=$(grep VERSION= /etc/os-release | grep -oE '[0-9]+' | head -n1)
@@ -128,12 +120,13 @@ check_update() {
             fi
         fi
         rm -f "$temp_file_apt_fix"
+    elif command -v yum >/dev/null 2>&1; then
+        ${PACKAGE_UPDATE[int]}
     else
         ${PACKAGE_UPDATE[int]}
     fi
 }
 
-# 检查IP是否为私有IPv4
 is_private_ipv4() {
     local ip_address=$1
     local ip_parts
@@ -156,7 +149,6 @@ is_private_ipv4() {
     fi
 }
 
-# 获取IPv4地址
 check_ipv4() {
     IPV4=$(ip -4 addr show | grep global | awk '{print $2}' | cut -d '/' -f1 | head -n 1)
     if is_private_ipv4 "$IPV4"; then # 由于是内网IPv4地址，需要通过API获取外网地址
@@ -202,8 +194,6 @@ check_cdn_file() {
 ###########################################
 # 系统检测模块
 ###########################################
-
-# 检查系统兼容性
 check_system_compatibility() {
     if [[ "${RELEASE[int]}" != "Debian" && "${RELEASE[int]}" != "Ubuntu" && "${RELEASE[int]}" != "CentOS" ]]; then
         _red "Current system not supported: ${RELEASE[int]}"
@@ -215,46 +205,25 @@ check_system_compatibility() {
 ###########################################
 # 依赖安装模块
 ###########################################
-
-# 安装基本依赖
 install_basic_dependencies() {
     _yellow "Installing basic dependencies"
     _yellow "安装基本依赖"
     check_update
-    if ! command -v curl >/dev/null 2>&1; then
-        _yellow "Installing curl"
-        _yellow "安装 curl"
-        ${PACKAGE_INSTALL[int]} curl
-    fi
-    if ! command -v tar >/dev/null 2>&1; then
-        _yellow "Installing tar"
-        _yellow "安装 tar"
-        ${PACKAGE_INSTALL[int]} tar
-    fi
-    if ! command -v unzip >/dev/null 2>&1; then
-        _yellow "Installing unzip"
-        _yellow "安装 unzip"
-        ${PACKAGE_INSTALL[int]} unzip
-    fi
-    if ! command -v git >/dev/null 2>&1; then
-        _yellow "Installing git"
-        _yellow "安装 git"
-        ${PACKAGE_INSTALL[int]} git
-    fi
-    if ! command -v sudo >/dev/null 2>&1; then
-        _yellow "Installing sudo"
-        _yellow "安装 sudo"
-        ${PACKAGE_INSTALL[int]} sudo
-    fi
-    if ! command -v jq >/dev/null 2>&1; then
-        _yellow "Installing jq"
-        _yellow "安装 jq"
-        ${PACKAGE_INSTALL[int]} jq
-    fi
-    if ! command -v openssl >/dev/null 2>&1; then
-        _yellow "Installing openssl"
-        _yellow "安装 openssl"
-        ${PACKAGE_INSTALL[int]} openssl
+    local packages=("curl" "tar" "unzip" "git" "sudo" "jq" "openssl")
+    for pkg in "${packages[@]}"; do
+        if ! command -v ${pkg} >/dev/null 2>&1; then
+            _yellow "Installing ${pkg}"
+            _yellow "安装 ${pkg}"
+            ${PACKAGE_INSTALL[int]} ${pkg}
+        fi
+    done
+    if [[ "${RELEASE[int]}" == "CentOS" ]]; then
+        if ! rpm -q epel-release >/dev/null 2>&1; then
+            _yellow "Installing EPEL repository for RedHat-based systems"
+            _yellow "为RedHat系统安装EPEL仓库"
+            ${PACKAGE_INSTALL[int]} epel-release
+            ${PACKAGE_UPDATE[int]}
+        fi
     fi
 }
 
@@ -404,7 +373,25 @@ main() {
     check_root
     setup_locale
     init_system_vars
-    check_system_compatibility
+    if [[ "${RELEASE[int]}" != "Debian" && "${RELEASE[int]}" != "Ubuntu" && "${RELEASE[int]}" != "CentOS" ]]; then
+        _yellow "Current system: ${RELEASE[int]}"
+        _yellow "当前系统: ${RELEASE[int]}"
+        if grep -qi "rhel\|rocky\|alma\|centos" /etc/os-release 2>/dev/null; then
+            _yellow "RedHat family OS detected, proceeding with CentOS compatible mode"
+            _yellow "检测到RedHat系统家族，将以CentOS兼容模式继续"
+            SYSTEM="CentOS"
+            for ((i=0; i<${#RELEASE[@]}; i++)); do
+                if [[ "${RELEASE[i]}" == "CentOS" ]]; then
+                    int=$i
+                    break
+                fi
+            done
+        else
+            _red "Current system not supported"
+            _red "不支持当前系统"
+            exit 1
+        fi
+    fi
     _yellow "Detecting IP address..."
     _yellow "正在检测IP地址..."
     check_ipv4
