@@ -262,24 +262,43 @@ install_dependencies() {
         else
             _green "✓ 安装 epel-release 成功"
         fi
-        if grep -qi "almalinux" /etc/os-release; then
+        _yellow "检测并启用可能缺失的依赖源..."
+        if grep -qi "centos" /etc/os-release; then
+            centos_ver=$(grep -oP '(?<=VERSION_ID=")[0-9]+' /etc/os-release)
+            if grep -qi "stream" /etc/os-release; then
+                _yellow "检测到 CentOS Stream $centos_ver"
+                if [[ "$centos_ver" == "8" ]]; then
+                    dnf config-manager --set-enabled powertools || true
+                elif [[ "$centos_ver" == "9" ]]; then
+                    dnf config-manager --set-enabled crb || true
+                fi
+            else
+                _yellow "检测到 CentOS Linux $centos_ver"
+                if [[ "$centos_ver" == "8" ]]; then
+                    dnf config-manager --set-enabled powertools || true
+                elif [[ "$centos_ver" == "9" ]]; then
+                    dnf config-manager --set-enabled crb || true
+                fi
+            fi
+            dnf makecache
+        elif grep -qi "almalinux" /etc/os-release; then
             alma_ver=$(grep -oP '(?<=VERSION_ID=")[0-9]+' /etc/os-release)
             if [[ "$alma_ver" == "8" ]]; then
                 _yellow "启用 powertools 仓库 (AlmaLinux 8)"
-                dnf config-manager --set-enabled powertools
+                dnf config-manager --set-enabled powertools || true
             elif [[ "$alma_ver" == "9" ]]; then
                 _yellow "启用 crb 仓库 (AlmaLinux 9)"
-                dnf config-manager --set-enabled crb
+                dnf config-manager --set-enabled crb || true
             fi
             dnf makecache
         elif grep -qi "rocky" /etc/os-release; then
             rocky_ver=$(grep -oP '(?<=VERSION_ID=")[0-9]+' /etc/os-release)
             if [[ "$rocky_ver" == "8" ]]; then
                 _yellow "启用 powertools 仓库 (Rocky Linux 8)"
-                dnf config-manager --set-enabled powertools
+                dnf config-manager --set-enabled powertools || true
             elif [[ "$rocky_ver" == "9" ]]; then
                 _yellow "启用 crb 仓库 (Rocky Linux 9)"
-                dnf config-manager --set-enabled crb
+                dnf config-manager --set-enabled crb || true
             fi
             dnf makecache
         fi
@@ -309,19 +328,7 @@ install_dependencies() {
         done
         $PKG_INSTALL python3-libguestfs || true
         _yellow "安装包: python3-virtualenv"
-        $PKG_INSTALL python3-virtualenv
-        if [ $? -ne 0 ]; then
-            _red "✗ 安装 python3-virtualenv 失败，尝试使用 pip 安装 virtualenv"
-            pip3 install virtualenv
-            if [ $? -ne 0 ]; then
-                _red "✗ pip 安装 virtualenv 也失败"
-                exit 1
-            else
-                _green "✓ pip 安装 virtualenv 成功"
-            fi
-        else
-            _green "✓ 安装 python3-virtualenv 成功"
-        fi
+        $PKG_INSTALL python3-virtualenv || pip3 install virtualenv
         if ! id -u $SYS_USER &>/dev/null; then
             _yellow "创建用户: $SYS_USER"
             useradd -r -s /sbin/nologin $SYS_USER
@@ -331,13 +338,8 @@ install_dependencies() {
                 _green "✓ 创建用户 $SYS_USER 成功"
             fi
         fi
-        if [[ "$OS" != "debian" ]]; then
-            _yellow "启用 supervisord 服务"
-            systemctl enable supervisord
-        else
-            _yellow "启用 supervisor 服务"
-            systemctl enable supervisor
-        fi
+        systemctl enable supervisord || true
+        systemctl enable supervisor || true
     fi
     _info "All dependencies installed" "所有依赖包安装完成"
 }
