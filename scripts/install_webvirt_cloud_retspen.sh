@@ -272,6 +272,16 @@ install_dependencies() {
                 dnf config-manager --set-enabled crb
             fi
             dnf makecache
+        elif grep -qi "rocky" /etc/os-release; then
+            rocky_ver=$(grep -oP '(?<=VERSION_ID=")[0-9]+' /etc/os-release)
+            if [[ "$rocky_ver" == "8" ]]; then
+                _yellow "启用 powertools 仓库 (Rocky Linux 8)"
+                dnf config-manager --set-enabled powertools
+            elif [[ "$rocky_ver" == "9" ]]; then
+                _yellow "启用 crb 仓库 (Rocky Linux 9)"
+                dnf config-manager --set-enabled crb
+            fi
+            dnf makecache
         fi
         if [[ "$OS" == "centos" && "$VER" == "7" ]]; then
             _yellow "安装 remi 仓库"
