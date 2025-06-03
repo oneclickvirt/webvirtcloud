@@ -6,7 +6,7 @@
 
 webvirtcloud的两个项目不是同样的项目，只是项目名称相同，维护者不同且面板也不同。
 
-## https://github.com/webvirtcloud/webvirtcloud
+## https://github.com/oneclickvirt/webvirtcloud
 
 中文：
 
