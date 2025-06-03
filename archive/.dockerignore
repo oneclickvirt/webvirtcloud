@@ -1,0 +1,17 @@
+.git
+.mysql
+.flake8
+.vscode
+.devcontainer
+Dockfile
+docker-compose.yml
+webvirtfront/.git
+webvirtfront/node_modules
+webvirtbacked/.git
+webvirtbacked/.venv
+webvirtbacked/.mysql
+webvirtbacked/.vscodev
+webvirtbacked/.devcontainer
+webvirtbacked/Dockfile
+webvirtbacked/docker-compose.yml
+webvirtbackend/celerybeat-schedule

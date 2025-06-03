@@ -1,0 +1,6 @@
+[submodule "webvirtbackend"]
+	path = webvirtbackend
+	url = ../../webvirtcloud/webvirtbackend.git
+[submodule "webvirtfrontend"]
+	path = webvirtfrontend
+	url = ../../webvirtcloud/webvirtfrontend.git

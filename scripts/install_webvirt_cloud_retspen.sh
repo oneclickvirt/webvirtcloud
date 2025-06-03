@@ -1,7 +1,7 @@
 #!/bin/bash
 # https://github.com/oneclickvirt/webvirtcloud
-# For https://github.com/retspen/webvirtcloud
-# 2025.05.01
+# For https://github.com/oneclickvirt/webvirtcloud_retspen from https://github.com/retspen/webvirtcloud
+# 2025.06.03
 
 set -e
 export DEBIAN_FRONTEND=noninteractive
@@ -379,7 +379,7 @@ clone_webvirtcloud() {
     if [ -d "webvirtcloud" ]; then
         rm -rf webvirtcloud
     fi
-    git clone "${cdn_success_url}https://github.com/retspen/webvirtcloud.git"
+    git clone "${cdn_success_url}https://github.com/oneclickvirt/webvirtcloud_retspen.git"
     if [ $? -ne 0 ]; then
         _red "✗ Repository clone failed"
         _red "✗ 仓库克隆失败"

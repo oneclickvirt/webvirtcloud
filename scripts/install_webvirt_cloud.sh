@@ -1,7 +1,7 @@
 #!/bin/bash
 # https://github.com/oneclickvirt/webvirtcloud
-# For https://github.com/webvirtcloud/webvirtcloud
-# 2025.05.02
+# For https://github.com/webvirtcloud/webvirtcloud (Already deleted, using archive for build)
+# 2025.06.03
 
 ###########################################
 # 初始化和环境变量设置
@@ -309,14 +309,14 @@ install_controller() {
         rm -rf webvirtcloud
     fi
     if [[ -z "${CN}" || "${CN}" != true ]]; then
-        git clone "${cdn_success_url}https://github.com/webvirtcloud/webvirtcloud.git"
+        git clone "${cdn_success_url}https://github.com/oneclickvirt/webvirtcloud.git"
     else
-        wget "${cdn_success_url}https://github.com/webvirtcloud/webvirtcloud/archive/refs/heads/master.zip"
-        unzip master.zip
-        mv webvirtcloud-master webvirtcloud
-        rm -f master.zip
+        wget "${cdn_success_url}https://github.com/oneclickvirt/webvirtcloud/archive/refs/heads/main.zip"
+        unzip main.zip
+        mv webvirtcloud-main webvirtcloud
+        rm -f main.zip
     fi
-    cd webvirtcloud
+    cd webvirtcloud/archive
     if [ -z "$IPV4" ]; then
         _red "Error: IPV4 variable not set, getting it again..."
         _red "错误: IPV4变量未设置，正在重新获取..."

@@ -16,7 +16,7 @@ English:
 
 https://www.spiritlhl.net/en/incomplete/webvirtcloud.html
 
-## https://github.com/retspen/webvirtcloud
+## https://github.com/oneclickvirt/webvirtcloud_retspen
 
 中文：
 
@@ -26,7 +26,7 @@ English:
 
 https://www.spiritlhl.net/en/incomplete/webvirtcloud_retspen.html
 
-## https://github.com/retspen/webvirtmgr
+## https://github.com/oneclickvirt/webvirtmgr
 
 中文：
 

@@ -1,0 +1,50 @@
+(cors) {
+	@cors_preflight method OPTIONS
+
+	handle @cors_preflight {
+		header Access-Control-Allow-Origin *
+		header Access-Control-Allow-Credentials true
+		header Access-Control-Allow-Methods "GET, POST, PUT, OPTIONS, DELETE"
+		header Access-Control-Allow-Headers "Accept,Content-Type,Authorization"
+		header Access-Control-Max-Age "1728000"
+		header Content-Type "text/plain charset=UTF-8"
+		header Content-Length "0"
+		respond "" 204
+	}
+}
+
+http://{$DOMAIN_NAME} {
+	import cors
+
+	handle_path /static/* {
+		encode gzip
+		root * /usr/share/caddy/
+		file_server
+	}
+
+	handle_path /* {
+		reverse_proxy http://backend:8000 {
+			header_up Host {host}
+			header_up X-Real-IP {remote}
+			header_down Access-Control-Allow-Origin *
+		}
+	}
+
+	handle_path /novnc/* {
+		reverse_proxy http://novnc:6080 {
+			header_up Host {host}
+			header_up X-Real-IP {remote}
+			header_down Access-Control-Allow-Origin *
+		}
+	}
+}
+
+http://169.254.169.254 {
+	handle_path /metadata/* {
+		rewrite * /metadata{uri}
+		reverse_proxy http://backend:8000 {
+			header_up Host {host}
+			header_up X-Real-IP {remote}
+		}
+	}
+}

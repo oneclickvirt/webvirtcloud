@@ -1,0 +1,136 @@
+services:
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: webvirtcloud:frontend
+    container_name: webvirtcloud-frontend
+    hostname: frontend
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    env_file:
+      - env.common
+      - env.local
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: webvirtcloud:backend
+    container_name: webvirtcloud-backend
+    hostname: backend
+    command: gunicorn webvirtcloud.wsgi:application --bind 0.0.0.0:8000
+    env_file:
+      - env.common
+      - env.local
+    depends_on:
+      backend_db_migration:
+        condition: service_completed_successfully
+      mariadb:
+        condition: service_healthy
+
+  backend_db_migration:
+    image: webvirtcloud:backend
+    container_name: webvirtcloud-db-migration
+    command: python3 manage.py migrate --noinput
+    env_file:
+      - env.common
+      - env.local
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  novnc:
+    image: webvirtcloud:backend
+    container_name: webvirtcloud-novnc
+    hostname: novnc
+    command: python3 manage.py novncd --verbose
+    env_file:
+      - env.common
+      - env.local
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  worker:
+    image: webvirtcloud:backend
+    container_name: webvirtcloud-worker
+    hostname: worker
+    command: celery -A webvirtcloud worker -l info
+    env_file:
+      - env.common
+      - env.local
+    healthcheck:
+      test: [ "CMD", "celery", "inspect", "ping" ]
+      start_period: 1m
+      start_interval: 10s
+      interval: 1m
+      timeout: 5s
+      retries: 3
+    depends_on:
+      backend_db_migration:
+        condition: service_completed_successfully
+      mariadb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  scheduler:
+    image: webvirtcloud:backend
+    container_name: webvirtcloud-scheduler
+    hostname: scheduler
+    command: celery -A webvirtcloud beat -l info
+    env_file:
+      - env.common
+      - env.local
+    depends_on:
+      backend_db_migration:
+        condition: service_completed_successfully
+      worker:
+        condition: service_healthy
+      mariadb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  mariadb:
+    image: mariadb:10.6.10
+    container_name: webvirtcloud-mariadb
+    hostname: mariadb
+    volumes:
+      - ./.mysql:/var/lib/mysql
+    env_file:
+      - env.common
+      - env.local
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--su-mysql", "--connect", "--innodb_initialized" ]
+      start_period: 1m
+      start_interval: 10s
+      interval: 1m
+      timeout: 5s
+      retries: 3
+
+  rabbitmq:
+    image: rabbitmq:3.10.13
+    container_name: webvirtcloud-rabbitmq
+    hostname: rabbitmq
+    env_file:
+      - env.common
+      - env.local
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      start_period: 1m
+      start_interval: 10s
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+volumes:
+  caddy_data:
+  caddy_config:
