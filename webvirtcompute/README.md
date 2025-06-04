@@ -1,17 +1,15 @@
-# The original project has been deleted. This is only a personal archive.
-
 # WebVirtCompute #
 
-WebVirtCompute is a daemon for deploying and managing virtual machines based on FastAPI and libvirt. It is designed to be used for compute nodes and backend. This project provides a REST API to manage virtual machines and their resources, making it easy to automate virtual machine management.
+WebVirtCompute is a daemon for deploying and managing virtual machines based on FastAPI and libvirt. It is designed to be used for compute nodes and controller. This project provides a REST API to manage virtual machines and their resources, making it easy to automate virtual machine management.
 
 ## Supported Distribution ##
 
-* AlmaLinux 8
-* AlmaLinux 9
-* Rocky Linux 8
-* Rocky Linux 9
+* RedHat 8, 9
+* AlmaLinux 8, 9
+* Rocky Linux 8, 9
+* CentOS Stream 8, 9
 * Debian 12 (Beta)
-* Ubuntu 22.04 (Beta)
+* Ubuntu 22.04, 24.04 (Beta)
 
 ## Requirements ##
 
@@ -25,7 +23,7 @@ WebVirtCompute is a daemon for deploying and managing virtual machines based on 
 ## For what is it? ##
 
 * It is a daemon for managing virtual machines based on FastAPI and libvirt.
-* It is designed to be used for compute nodes and backend.
+* It is designed to be used for compute nodes and controller.
 * It is a lightweight and fast daemon.
 * It is easy to install and configure.
 * It is only one binary file.
@@ -35,7 +33,7 @@ WebVirtCompute is a daemon for deploying and managing virtual machines based on 
 
 ### Network Setup ###
 
-#### Only for Ubuntu 22.04 (Beta) ####
+#### Only for Ubuntu 22.04, 24.04 (Beta) ####
 
 Install NetworkManager and firewalld:
 
@@ -56,7 +54,7 @@ network:
 Install NetworkManager and firewalld:
 
 ```bash
-sudo apt install -y network-manager firewalld
+sudo apt install -y curl network-manager firewalld
 ```
 
 and change `managed` to `true` in the file `/etc/NeworkManager/NetworkManager.conf`:
@@ -68,6 +66,8 @@ plugins=ifupdown,keyfile
 [ifupdown]
 managed=true
 ```
+
+> **Warning:** To apply the settings, restart the server.
 
 #### For all supported distributions ####
 
@@ -110,7 +110,7 @@ For bridge interface `br-int` we don't need to set IP addresses.
 This script will install and configure `libvirt` with `qemu:///system` URI. You can always change settings `libvirt` and `libguestfish` if that is needed. Only create and set up `br-ext` and `br-int` bridges before running this script.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/oneclickvirt/webvirtcloud/webvirtcompute/master/scripts/libvirt.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/libvirt.sh | sudo bash
 ```
 
 ### Prometheus setup ###
@@ -118,7 +118,7 @@ curl -fsSL https://raw.githubusercontent.com/oneclickvirt/webvirtcloud/webvirtco
 This script will install and configure `prometheus` with `node_exporter` and `libvirt_exporter`. You can always change settings for `prometheus` if that is needed. 
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/oneclickvirt/webvirtcloud/webvirtcompute/master/scripts/prometheus.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/prometheus.sh | sudo bash
 ```
 
 ### Firewall setup ###
@@ -133,10 +133,10 @@ Base firewall rules:
 
 
 ```bash
-WEBVIRTBACKED_IP=<you backend IP> # need put your backend IP
+CONTROLLER_IP=<Controller IP> # put controller IP here
 firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 1 -m physdev --physdev-is-bridged -j ACCEPT # Bridge traffic rule
 firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -d 10.255.0.0/16 -j MASQUERADE # Floating IP feature rule
-firewall-cmd --permanent --direct --add-rule ipv4 nat PREROUTING 0 -i br-ext '!' -s 169.254.0.0/16 -d 169.254.169.254 -p tcp -m tcp --dport 80 -j DNAT --to-destination $WEBVIRTBACKED_IP:80 # CLoud-init metadata service rule
+firewall-cmd --permanent --direct --add-rule ipv4 nat PREROUTING 0 -i br-ext '!' -s 169.254.0.0/16 -d 169.254.169.254 -p tcp -m tcp --dport 80 -j DNAT --to-destination $CONTROLLER_IP:80 # CLoud-init metadata service rule
 firewall-cmd --permanent --zone=trusted --add-source=169.254.0.0/16 # Move cloud-init metadata service to trusted zone
 firewall-cmd --permanent --zone=trusted --add-interface=br-ext # Move br-ext to trusted zone
 firewall-cmd --permanent --zone=trusted --add-interface=br-int # Move br-int to trusted zone
@@ -146,37 +146,37 @@ firewall-cmd --reload
 ### Install WebVirtCompute daemon ###
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/oneclickvirt/webvirtcloud/webvirtcompute/master/scripts/install.sh | sudo bash
-```
-
-### Update WebVirtCompute daemon ###
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/oneclickvirt/webvirtcloud/webvirtcompute/master/scripts/update.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/install.sh | sudo bash
 ```
 
 ### Configuring daemon (optional) ###
 
 WebVirtCompute uses a configuration file to set up the daemon. The default configuration file is located at `/etc/webvirtcompute/webvirtcompute.ini`. You have to copy `token` and add it to WebVirtCloud admin panel when you add a new compute node.
 
-## WebVirtCompute ##
-
-### Build from source ###
+## Update WebVirtCompute daemon ##
 
 ```bash
-make -f Makefile.rockylinux8 compile
-make -f Makefile.rockylinux8 package
+curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/update.sh | sudo bash
+```
+
+## Build daemon from source ##
+
+```bash
+make -f Makefile.rhel9 build
+make -f Makefile.rhel9 compile
+make -f Makefile.rhel9 package
 ```
 You can find the archive with binary in `release` directory.
 
-### Download binary ###
+## Download binary ##
 
 You can download already built binary for:
 
-* [almalinux8](https://github.com/oneclickvirt/webvirtcloud/releases/download/webvirtcloud_dep/webvirtcompute-almalinux8-amd64.tar.gz) 
-* [rockylinux8](https://github.com/oneclickvirt/webvirtcloud/releases/download/webvirtcloud_dep/webvirtcompute-rockylinux8-amd64.tar.gz)
-* [almalinux9](https://github.com/oneclickvirt/webvirtcloud/releases/download/webvirtcloud_dep/webvirtcompute-almalinux9-amd64.tar.gz) 
-* [rockylinux9](https://github.com/oneclickvirt/webvirtcloud/releases/download/webvirtcloud_dep/webvirtcompute-rockylinux9-amd64.tar.gz)
+* [RHEL 8 family](https://cloud-apps.webvirt.cloud/webvirtcompute-rhel8-amd64.tar.gz) 
+* [RHEL 9 family](https://cloud-apps.webvirt.cloud/webvirtcompute-rhel9-amd64.tar.gz) 
+* [Debian 12](https://cloud-apps.webvirt.cloud/webvirtcompute-debian12-amd64.tar.gz)
+* [Ubuntu 22.04](https://cloud-apps.webvirt.cloud/webvirtcompute-ubuntu2204-amd64.tar.gz)
+* [Ubuntu 24.04](https://cloud-apps.webvirt.cloud/webvirtcompute-ubuntu2404-amd64.tar.gz)
 
 ## License ##
 

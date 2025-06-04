@@ -30,52 +30,70 @@ git clone https://github.com/webvirtcloud/webvirtcloud.git
 cd webvirtcloud
 ```
 
-### Run script for deploy
+### Set up Caddy
 
+To configure TLS for the web server, copy either the `Caddyfile.selfsigned` or `Caddyfile.letsencrypt` and without TLS `Caddyfile.noncert` template to `Caddyfile`.
+
+<Note title='Note'>
+Caddy web server does not support TLS for IP address.
+</Note>
+
+For example, if your IP address is `192.168.0.114`, you can use `192-168-0-114.nip.io` as your domain name. Below, we demonstrate how to set up a self-signed certificate for the domain `webvirtcloud-192-168-0-114.nip.io`
+
+For TLS with self-signed certificates:
+```bash
+# Create the directory structure for Caddy certificates
+mkdir -p .caddy/certs
+
+# Generate a self-signed SSL certificate using OpenSSL
+openssl req -x509 \
+    -newkey rsa:4096 \
+    -keyout .caddy/certs/key.pem \
+    -out .caddy/certs/cert.pem \
+    -days 365 \
+    -nodes \
+    -subj "/CN=webvirtcloud-192-168-0-114.nip.io"
+
+# Copy the self-signed Caddyfile to the main Caddyfile
+cp Caddyfile.selfsigned Caddyfile
+```
+
+Without TLS:
+```bash
+cp Caddyfile.noncert Caddyfile
+```
+
+### Run the setup script:
 ```bash
 ./webvirtcloud.sh env
 ```
 
-### Start
+Example:
+```
+Enter your domain or IP address (only HTTP). Default: localhost
+Enter: webvirtcloud-192-168-0-114.nip.io
+```
+
+### Start WebVirtCloud
 
 ```bash
 ./webvirtcloud.sh start
 ```
+For first-time users, refer to the [Features](/docs/introduction#features) section to explore the capabilities of WebVirtCloud.
 
-### Open client side in browser
+- **Client panel** - [https://webvirtcloud-192-168-0-114.nip.io](https://webvirtcloud-192-168-0-114.nip.io)
+- **Admin panel** - [https://webvirtcloud-192-168-0-114.nip.io/admin](https://webvirtcloud-192-168-0-114.nip.io/admin)
 
-Example for domain: webvirt.local
-
-[http://client.webvirt.local](http://client.webvirt.local)
-
-You can log in with the following credentials:
-
-- Username: `user@webvirt.cloud`
-- Password: `1qaz2wsx`
-- Token: `fcc69bfad35527d087bf22a8a84a4f6c3b75387877c78ae3050e9e8036ef`
-
-### Open admin side in browser
-
-Example for domain: webvirt.local
-
-[http://manage.webvirt.local](http://manage.webvirt.local)
-
-You can log in with the following credentials:
-
-- Username: `admin@spiritlhl.net`
-- Password: `admin`
-
-### Allow custom SSL certificate (optional)
-
+#### Default Credentials for admin side:
+```
+username: admin@webvirt.cloud
+password: admin
+```
 <Note title="Warning">
-  If you use webvirt.local wildcard domain you need to allow custom SSL certificate in
-  browser.
+It is critical to change the default credentials immediately after the first login to ensure security.
 </Note>
 
-[http://assets.webvirt.local](http://assets.webvirt.local)
-
-[https://api.webvirt.local](https://api.webvirt.local)
-
+You can create new user in admin side or register new user in client side.
 </Steps>
 
 ## Update controller
@@ -86,9 +104,13 @@ You can log in with the following credentials:
 ```bash
 ./webvirtcloud.sh update
 ```
+If you have installation before and want to use new features like the [Load Balancer](https://webvirt.cloud/blog/new-feature-load-balancer), you need to add new size to database:
+```bash
+./webvirtcloud.sh loaddata
+```
 
 <Note title="Warning">
-  Don't forget update WebVirtCompute daemon on nodes after update controller.
+  Don't forget update [WebVirtCompute daemon](https://webvirt.cloud/docs/installation/setup-hypervisor#update-webvirtcompute-daemon) on nodes after update controller.
 </Note>
 
 Wait until the update process finishes.
@@ -101,26 +123,34 @@ You can change the default settings in the `custom.env` file. Just copy variable
 
 ```bash
 # Email environment variables
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_HOST_USER = "admin"
-EMAIL_HOST_PASSWORD = "admin"
-EMAIL_USE_TLS = True
-EMAIL_FROM = "WebVirtCloud <noreply@gmail.com>"
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=admin
+EMAIL_HOST_PASSWORD=admin
+EMAIL_USE_TLS=True
+EMAIL_FROM="WebVirtCloud <noreply@gmail.com>"
 ```
 
-## API
+## Load Balancer
+[Load Balancer](https://webvirt.cloud/blog/new-feature-load-balancer) is a new feature in WebVirtCloud. You can create a load balancer and add virtual machines to it. The load balancer will distribute the incoming traffic to the virtual machines.
 
-The API endpoints are available at `http://api.webvirt.local/v1/`. You can use them to create, delete, and manage virtual machines. You can log in with the following credentials:
-
-- Username: `user@webvirt.cloud`
-- Password: `1qaz2wsx`
-- Token: `fcc69bfad35527d087bf22a8a84a4f6c3b75387877c78ae3050e9e8036ef`
-
-Example API requests:
-
+Manually enable Load Balancer for client side (only if you have installed befeore Load Balancer feature):
 ```bash
-curl -X GET http://api.webvirt.local/v1/virtances/ \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer fcc69bfad35527d087bf22a8a84a4f6c3b75387877c78ae3050e9e8036ef"
+echo "VITE_LOADBALANCER=true" >> custom.env
 ```
+<Note title="Important">
+Load Balancer required access from controller to private network for deploy and manage HaProxy on virtual machine.
+</Note>
+
+## Installing the Compute Node (Hypervisor)
+Now your controller is up and running. The next step is [Setup Hypervisor](/docs/installation/setup-hypervisor).
+<Note title="Warning">
+After updating the controller, make sure to update the WebVirtCompute daemon on all compute nodes to ensure compatibility.
+</Note>
+
+## Private networking
+If you don't have additional network interfaces on your server for private network, you can use the [WireGuard](https://www.wireguard.com/) VPN to create a private network between the controller and the compute.
+
+<Note title="Important">
+  Also check [README.md](https://github.com/webvirtcloud/webvirtbackend/blob/master/README.md) which is always up-to-date.
+</Note>

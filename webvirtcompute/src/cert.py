@@ -24,7 +24,7 @@ def gen_self_signed_cert(validity_days=3650):
     cert.get_subject().L = "San Francisco"
     cert.get_subject().O = "WebVirtCloud"
     cert.get_subject().CN = "localhost"
-    cert.get_subject().emailAddress = "admin@spiritlhl.net"
+    cert.get_subject().emailAddress = "admin@webvirt.cloud"
     cert.set_serial_number(0)
     cert.gmtime_adj_notBefore(0)
     cert.gmtime_adj_notAfter(validity_days * 24 * 60 * 60)

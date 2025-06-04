@@ -1,39 +1,22 @@
 'use client';
 
-import SparklesIcon from '@heroicons/react/24/solid/SparklesIcon';
-import ArrowSmallRightIcon from '@heroicons/react/24/solid/ArrowSmallRightIcon';
+import { motion } from 'motion/react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import GithubIcon from '@/icons/github';
 import { cx } from 'ui/lib';
 import { buttonVariants } from '@/components/button';
-import { DesktopPreview, MobilePreview } from '@/components/previews';
+import { DesktopPreview } from '@/components/previews';
+import { ReleaseBadge } from '@/components/release-badge';
 
 export function HomeHeader() {
   return (
-    <header className="relative overflow-hidden p-4 py-24 text-center md:px-8">
-      <motion.div
-        initial={{ opacity: 0, translateY: -8 }}
-        animate={{ opacity: 100, translateY: 0 }}
-        transition={{ delay: 0.8, duration: 0.8 }}
-        className="bg-muted/50 mb-4 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-center text-xs backdrop-blur-xl md:text-base"
-      >
-        <SparklesIcon className="h-5 w-5" />
-        <span>Beta release is finally here!</span>
-        <div className="h-5 w-px bg-black/20 dark:bg-white/20"></div>
-        <Link
-          className="inline-flex items-center gap-1 text-sky-500"
-          href={'/blog/october-beta-release'}
-        >
-          <span>Read post</span>
-          <ArrowSmallRightIcon className="h-4 w-4" />
-        </Link>
-      </motion.div>
+    <header className="container relative mx-auto p-4 py-24 text-center md:px-8">
+      <ReleaseBadge>New feature: Load Balancer is released</ReleaseBadge>
       <motion.h1
         initial={{ opacity: 0, translateY: -20 }}
         animate={{ opacity: 100, translateY: 0 }}
         transition={{ duration: 1 }}
-        className="mx-auto mb-6 text-5xl font-medium leading-tight md:text-7xl md:leading-none"
+        className="mx-auto mb-6 text-5xl font-medium leading-tight tracking-[-0.0195em] md:text-7xl md:leading-none"
       >
         Free, open source <br /> cloud platform
       </motion.h1>
@@ -53,22 +36,22 @@ export function HomeHeader() {
         className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-center"
       >
         <Link
-          className={cx(buttonVariants({ size: 'xl', variant: 'default' }))}
+          className={cx(buttonVariants({ size: 'default', variant: 'default' }))}
           href="/docs/introduction"
         >
-          Try it now
+          Get started
         </Link>
         <a
           href="https://github.com/webvirtcloud/"
           target="_blank"
-          className={cx(buttonVariants({ size: 'xl', variant: 'outline' }))}
+          className={cx(buttonVariants({ size: 'default', variant: 'outline' }))}
         >
           <GithubIcon className="mr-2" />
           Give a star
         </a>
       </motion.div>
       <p className="mb-8"></p>
-      <div className="relative pt-20">
+      <div className="relative pt-8 md:pt-20">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -103,27 +86,16 @@ export function HomeHeader() {
             className="absolute left-1/2 top-4 -z-10 h-24 w-24 -translate-x-1/2 rounded-full bg-yellow-500 blur-[100px] md:h-48 md:w-48 lg:h-96 lg:w-96"
           ></motion.div>
         </motion.div>
-        <motion.div
-          initial={{ opacity: 0, translateY: 80 }}
-          animate={{ opacity: 100, translateY: 0 }}
-          transition={{ duration: 2 }}
-          style={{ perspective: '1000px' }}
-          className="flex justify-center"
-        >
+        <div className="overflow-hidden max-md:relative max-md:inset-x-1/2 max-md:-mx-[50vw] max-md:w-screen max-md:pl-4">
           <motion.div
-            initial={{ rotateX: '30deg', scale: 1.1 }}
-            whileInView={{ rotateX: 0 }}
-            viewport={{ margin: '0px 0px -50% 0px' }}
-            transition={{
-              type: 'spring',
-              stiffness: 50,
-              damping: 20,
-            }}
+            initial={{ opacity: 0, translateY: 80 }}
+            animate={{ opacity: 100, translateY: 0 }}
+            transition={{ duration: 2 }}
+            className="isolate mx-auto w-[900px] md:w-auto"
           >
             <DesktopPreview />
-            <MobilePreview />
           </motion.div>
-        </motion.div>
+        </div>
       </div>
     </header>
   );

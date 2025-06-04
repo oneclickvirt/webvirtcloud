@@ -4,66 +4,65 @@ set -e
 DISTRO_NAME=""
 DISTRO_VERSION=""
 OS_RELEASE="/etc/os-release"
-TOKEN=$(echo -n $(date) | sha256sum | cut -d ' ' -f1)
+PKG_MANAGER="dnf"
 
 if [[ -f $OS_RELEASE ]]; then
   source $OS_RELEASE
-  if [[ $ID == "rocky" ]]; then
+  DISTRO_VERSION=$(echo "$VERSION_ID" | awk -F. '{print $1}')
+  if [[ "$ID" =~ ^(rhel|rocky|centos|almalinux)$ ]] && [[ $VERSION_ID == [89]* ]]; then
     DISTRO_NAME="rhel"
-  elif [[ $ID == "centos" ]]; then
-    DISTRO_NAME="rhel"
-  elif [[ $ID == "almalinux" ]]; then
-    DISTRO_NAME="rhel"
+    PKG_MANAGER="dnf"
+  elif [[ $ID == "debian" ]] && [[ $VERSION_ID == "12" ]]; then
+    DISTRO_NAME="debian"
+    PKG_MANAGER="apt"
+  elif [[ $ID == "ubuntu" ]] && [[ $VERSION_ID == "22.04" || $VERSION_ID == "24.04" ]]; then
+    DISTRO_VERSION=$(echo "$VERSION_ID" | awk -F. '{print $1$2}')
+    DISTRO_NAME="ubuntu"
+    PKG_MANAGER="apt"
+  else
+    echo -e "\nUnsupported distribution or version! Supported releases: Rocky Linux 8-9, CentOS 8-9, AlmaLinux 8-9, Debian 12, Ubuntu 22.04 and Ubuntu 24.04.\n"
+    exit 1
   fi
-    DISTRO_VERSION=$(echo "$VERSION_ID" | awk -F. '{print $1}')
-fi
-
-# Check if release file is recognized
-if [[ -z $DISTRO_NAME ]]; then
-  echo -e "\nDistro is not recognized. Supported releases: Rocky Linux 8-9, CentOS 8-9, AlmaLinux 8-9.\n"
-  exit 1
 fi
 
 # Check if libvirt is installed
-if ! dnf list installed libvirt > /dev/null 2>&1; then
-  echo -e "\nPackage libvirt is not installed. Please install and configure libvirt first!\n"
-  exit 1
+if [[ $DISTRO_NAME == "rhel" ]]; then
+  if ! dnf list installed libvirt > /dev/null 2>&1; then
+    echo -e "\nPackage libvirt is not installed. Please install and configure libvirt first!\n"
+    exit 1
+  fi
+elif [[ $DISTRO_NAME == "debian" ]] || [[ $DISTRO_NAME == "ubuntu" ]]; then
+  if ! dpkg -l | grep -q "libvirt-daemon-system"; then
+    echo -e "\nPackage libvirt-daemon-system is not installed. Please install and configure libvirt first!\n"
+    exit 1
+  fi
 fi
 
-check_cdn() {
-    local o_url=$1
-    local shuffled_cdn_urls=($(shuf -e "${cdn_urls[@]}")) # 打乱数组顺序
-    for cdn_url in "${shuffled_cdn_urls[@]}"; do
-        if curl -sL -k "$cdn_url$o_url" --max-time 6 | grep -q "success" >/dev/null 2>&1; then
-            export cdn_success_url="$cdn_url"
-            return
-        fi
-        sleep 0.5
-    done
-    export cdn_success_url=""
-}
-
-check_cdn_file() {
-    check_cdn "https://raw.githubusercontent.com/spiritLHLS/ecs/main/back/test"
-    if [ -n "$cdn_success_url" ]; then
-        echo "CDN available, using CDN"
-    else
-        echo "No CDN available, no use CDN"
-    fi
-}
-
 # Install prometheus
-dnf install -y curl
-cdn_urls=("https://cdn0.spiritlhl.top/" "http://cdn1.spiritlhl.net/" "http://cdn2.spiritlhl.net/" "http://cdn3.spiritlhl.net/" "http://cdn4.spiritlhl.net/")
-check_cdn_file
 echo -e "\nInstalling and configuring prometheus..."
-dnf install -y epel-release
-dnf install -y golang-github-prometheus golang-github-prometheus-node-exporter
-wget -O /tmp/prometheus-libvirt-exporter.tar.gz "${cdn_success_url}https://github.com/oneclickvirt/webvirtcloud/releases/download/webvirtcloud_dep/prometheus-libvirt-exporter-$DISTRO_NAME$DISTRO_VERSION-amd64.tar.gz"
+if [[ $DISTRO_NAME == "rhel" ]]; then
+  dnf install -y epel-release
+  dnf install -y golang-github-prometheus golang-github-prometheus-node-exporter
+elif [[ $DISTRO_NAME == "debian" ]] || [[ $DISTRO_NAME == "ubuntu" ]]; then
+  apt update
+  DEBIAN_FRONTEND=noninteractive apt install -y prometheus prometheus-node-exporter
+fi
+
+# Download and install libvirt exporter
+wget -O /tmp/prometheus-libvirt-exporter.tar.gz https://cloud-apps.webvirt.cloud/prometheus-libvirt-exporter-$DISTRO_NAME$DISTRO_VERSION-amd64.tar.gz
 tar -xvf /tmp/prometheus-libvirt-exporter.tar.gz -C /tmp
 cp /tmp/prometheus-libvirt-exporter/prometheus-libvirt-exporter /usr/local/bin/
-restorecon -v /usr/local/bin/prometheus-libvirt-exporter
+chmod +x /usr/local/bin/prometheus-libvirt-exporter
+
+# Apply SELinux context if applicable
+if [[ $DISTRO_NAME == "rhel" ]] && command -v restorecon &> /dev/null; then
+  restorecon -v /usr/local/bin/prometheus-libvirt-exporter
+fi
+
+# Configure Prometheus libvirt exporter service
 cp /tmp/prometheus-libvirt-exporter/prometheus-libvirt-exporter.service /etc/systemd/system/prometheus-libvirt-exporter.service
+
+# Add libvirt exporter to prometheus config
 cat << EOF >> /etc/prometheus/prometheus.yml
 
   - job_name: libvirt
@@ -71,11 +70,16 @@ cat << EOF >> /etc/prometheus/prometheus.yml
     static_configs:
       - targets: ['localhost:9177']
 EOF
+
+# Reload systemd and enable services
 systemctl daemon-reload
 systemctl enable --now prometheus-libvirt-exporter
+
+# Enable and start services based on distro-specific names
 systemctl enable --now prometheus-node-exporter
-systemctl enbale --now prometheus
-echo -e "Installing and configuring prometheus... - Done!\n"
+systemctl enable --now prometheus
+
+echo -e "\nInstalling and configuring prometheus... - Done!\n"
 
 # Clean up
 rm -rf /tmp/prometheus-libvirt-exporter*

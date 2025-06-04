@@ -14,9 +14,7 @@ export function TocNavItem({ heading }: { heading: Heading }) {
         className={cx([
           'block py-1',
           heading.level && heading.level > 2 && 'group flex items-start py-1',
-          isActive
-            ? 'text-sky-500'
-            : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-300',
+          isActive ? 'text-sky-500' : 'text-muted-foreground hover:text-foreground',
         ])}
         href={`#${heading.slug}`}
       >
@@ -41,12 +39,11 @@ function useHighlighted(id: string) {
     };
 
     observer.current = new IntersectionObserver(handleObserver, {
-      rootMargin: '-112px 0% -35% 0px',
-      threshold: 0.5,
+      rootMargin: '0% 0% -60% 0%',
     });
 
     const elements = document.querySelectorAll('h2, h3, h4');
-    elements.forEach((elem) => observer.current!.observe(elem));
+    elements.forEach((elem) => observer.current?.observe(elem));
     return () => observer.current?.disconnect();
   }, []);
 

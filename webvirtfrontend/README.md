@@ -1,5 +1,3 @@
-# The original project has been deleted. This is only a personal archive.
-
 <div align="center">
   <h1>Web Virtual Cloud Frontend</h1>
 
