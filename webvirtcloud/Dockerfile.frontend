@@ -37,5 +37,3 @@ COPY ./webvirtbackend/static/ /usr/share/caddy/
 COPY --from=frontend-build /frontend/apps/web/dist/assets/ /usr/share/caddy/assets/
 COPY --from=frontend-build /frontend/apps/web/dist/index.html /backend/templates/client/index.html
 COPY --from=frontend-build /frontend/apps/web/dist/manifest.webmanifest /usr/share/caddy/manifest.webmanifest
-COPY .caddy/certs/cert.pem /etc/caddy/certs/cert.pem
-COPY .caddy/certs/key.pem /etc/caddy/certs/key.pem

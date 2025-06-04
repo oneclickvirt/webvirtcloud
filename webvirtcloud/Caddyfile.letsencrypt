@@ -1,3 +1,8 @@
+{
+	email hostmaster@{$DOMAIN_NAME}
+	acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
+
 (cors) {
 	@cors_preflight method OPTIONS
 
@@ -13,7 +18,7 @@
 	}
 }
 
-http://{$DOMAIN_NAME} {
+https://{$DOMAIN_NAME} {
 	import cors
 
 	handle_path /static/* {

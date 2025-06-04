@@ -316,9 +316,9 @@ install_controller() {
         mv webvirtcloud-main webvirtcloud
         rm -f main.zip
     fi
-    cp -r webvirtcloud/webvirtbackend webvirtcloud/archive/
-    cp -r webvirtcloud/webvirtfrontend webvirtcloud/archive/
-    cd webvirtcloud/archive
+    cp -r webvirtcloud/webvirtbackend webvirtcloud/webvirtcloud/
+    cp -r webvirtcloud/webvirtfrontend webvirtcloud/webvirtcloud/
+    cd webvirtcloud/webvirtcloud
     if [ -z "$IPV4" ]; then
         _red "Error: IPV4 variable not set, getting it again..."
         _red "错误: IPV4变量未设置，正在重新获取..."
