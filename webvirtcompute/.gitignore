@@ -1,0 +1,11 @@
+*.pyc
+*.pyo
+*.spec
+.DS_*
+.venv
+.idea
+.vscode
+.vagrant
+dist
+build
+release
