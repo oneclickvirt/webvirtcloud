@@ -1,0 +1,90 @@
+{
+  "name": "web",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Frontend of WebVirtCloud",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/retspen/webvirtfrontend"
+  },
+  "author": "Roman Slonov <destabiliseus@gmail.com>",
+  "license": "Apache2.0",
+  "bugs": {
+    "url": "https://github.com/retspen/webvirtfrontend/issues"
+  },
+  "keywords": [
+    "webvirtcloud",
+    "manage",
+    "virtualization",
+    "react",
+    "tailwind"
+  ],
+  "browserslist": [
+    "defaults and supports es6-module",
+    "maintained node versions"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.0.13",
+    "@hookform/devtools": "^4.3.1",
+    "@hookform/resolvers": "^3.3.4",
+    "@novnc/novnc": "^1.4.0",
+    "@tanstack/react-query": "^5.51.3",
+    "@uidotdev/usehooks": "^2.4.1",
+    "compose-function": "^3.0.3",
+    "d3": "^7.8.4",
+    "date-fns": "^2.29.3",
+    "js-cookie": "^3.0.5",
+    "ky": "^0.32.0",
+    "lightweight-charts": "^4.0.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.50.1",
+    "react-router-dom": "^6.4.2",
+    "react-use-measure": "^2.1.1",
+    "sonner": "^1.4.41",
+    "ui": "*",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^17.0.3",
+    "@commitlint/config-conventional": "^17.0.3",
+    "@tailwindcss/forms": "^0.5.2",
+    "@testing-library/jest-dom": "^5.16.4",
+    "@testing-library/react": "^13.3.0",
+    "@types/d3": "^7.4.0",
+    "@types/jest": "^28.1.3",
+    "@types/js-cookie": "^3.0.3",
+    "@types/node": "^17.0.29",
+    "@types/react": "^18.0.14",
+    "@types/react-dom": "^18.0.5",
+    "@typescript-eslint/eslint-plugin": "^5.30.0",
+    "@typescript-eslint/parser": "^5.30.0",
+    "@vitejs/plugin-react": "^3.0.0",
+    "autoprefixer": "^10.4.7",
+    "eslint": "^8.18.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-jsx-a11y": "^6.6.1",
+    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-react": "^7.30.1",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-simple-import-sort": "^8.0.0",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^28.1.1",
+    "jest-environment-jsdom": "^28.1.1",
+    "lint-staged": "^11.2.6",
+    "postcss": "^8.4.14",
+    "prettier": "^2.7.1",
+    "prop-types": "^15.8.1",
+    "tailwindcss": "^3.3.1",
+    "ts-jest": "^28.0.5",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.13"
+  }
+}
