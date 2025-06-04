@@ -1,9 +1,8 @@
-from crispy_forms.helper import FormHelper
 from django import forms
 from django.core.validators import RegexValidator
-
-from compute.models import Compute
+from crispy_forms.helper import FormHelper
 from region.models import Region
+from compute.models import Compute
 
 
 class CustomModelChoiceField(forms.ModelChoiceField):

@@ -1,6 +1,6 @@
 import django_tables2 as tables
 
-from size.models import Size
+from region.models import Region
 
 
 class SizeHTMxTable(tables.Table):
@@ -15,6 +15,6 @@ class SizeHTMxTable(tables.Table):
     )
 
     class Meta:
-        model = Size
+        model = Region
         fields = ("slug", "name", "description", "active", "created")
         template_name = "django_tables2/bootstrap.html"

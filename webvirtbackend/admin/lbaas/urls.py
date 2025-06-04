@@ -1,12 +1,11 @@
 from django.urls import re_path
-
 from .views import (
-    AdminLBaaSDataView,
-    AdminLBaaSDownlodPrivateKeyAction,
     AdminLBaaSIndexView,
+    AdminLBaaSDataView,
+    AdminLBaaSResetEventAction,
     AdminLBaaSRecreateAction,
     AdminLBaaSReloadAction,
-    AdminLBaaSResetEventAction,
+    AdminLBaaSDownlodPrivateKeyAction,
 )
 
 urlpatterns = [

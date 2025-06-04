@@ -1,6 +1,6 @@
 from django.urls import re_path
 
-from account.views import ChangePasswordAPI, ProfileAPI
+from account.views import ProfileAPI, ChangePasswordAPI
 
 urlpatterns = [
     re_path(r"profile/?$", ProfileAPI.as_view(), name="profile_api"),

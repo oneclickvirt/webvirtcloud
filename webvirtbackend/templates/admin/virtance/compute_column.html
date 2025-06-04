@@ -1,9 +1,7 @@
 {% if record.compute %}
-<a
-href="{% url 'admin_compute_overview' record.compute.id %}"
-class="text-blue-600 hover:text-blue-900"
->{{ record.compute.name }}</a
->
+    <a href="{% url 'admin_compute_overview' record.compute.id %}" class="text-blue-600 hover:text-blue-900">
+        {{ record.compute.name }}
+    </a>
 {% else %}
-<span class="text-gray-500">No compute</span>
+    <span>None</span>
 {% endif %}

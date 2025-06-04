@@ -3,10 +3,9 @@ Django develop settings for WebVirtCloud project.
 
 """
 
-import os
 import socket
 
-from .base import *  # noqa: F403
+from .base import *
 
 
 # Django settings
@@ -16,7 +15,7 @@ DEBUG = True
 ALLOWED_HOSTS = ["*"]
 
 # Application definition
-INSTALLED_APPS += [  # noqa: F405
+INSTALLED_APPS += [
     "drf_yasg",
     "corsheaders",
     "debug_toolbar",
@@ -27,17 +26,14 @@ INSTALLED_APPS += [  # noqa: F405
 CORS_ORIGIN_ALLOW_ALL = True
 
 # Security settings
-SESSION_COOKIE_DOMAIN = None
-
-# Encryption key
-ENCRYPTION_KEY = "31kXwnNCYWDydZyhcHEG0fymS4yyPUfLlpJmw2hxmuM="
+SESSION_COOKIE_DOMAIN = os.environ.get("SESSION_COOKIE_DOMAIN", None)
 
 # DebugToolBar
 hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
 INTERNAL_IPS = [ip[: ip.rfind(".")] + ".1" for ip in ips] + ["127.0.0.1", "localhost"]
 
 # Middleware definition
-MIDDLEWARE += [  # noqa: F405
+MIDDLEWARE += [
     "corsheaders.middleware.CorsMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django_browser_reload.middleware.BrowserReloadMiddleware",
@@ -60,6 +56,6 @@ EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 
 try:
-    from .local import *  # noqa: F403
+    from .local import *
 except ImportError:
     pass

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import DBMS, Size
+from .models import Size
 
 
 class SizeSerializer(serializers.ModelSerializer):
@@ -41,26 +41,3 @@ class SizeSerializer(serializers.ModelSerializer):
 
     def get_regions(self, obj):
         return [region.slug for region in obj.regions.all()]
-
-
-class DBMSSerializer(serializers.ModelSerializer):
-    sizes = serializers.SerializerMethodField()
-    available = serializers.BooleanField(source="is_active")
-
-    class Meta:
-        model = DBMS
-        fields = (
-            "slug",
-            "name",
-            "sizes",
-            "engine",
-            "version",
-            "available",
-            "description",
-        )
-
-    def get_sizes(self, obj):
-        size_list = []
-        for size in obj.sizes.all():
-            size_list.append(size)
-        return SizeSerializer(size_list, many=True).data

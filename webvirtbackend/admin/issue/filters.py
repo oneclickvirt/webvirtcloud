@@ -2,10 +2,10 @@ import django_filters
 from django.db.models import Q
 from django.utils import timezone
 
-from firewall.models import FirewallError
-from floating_ip.models import FloatIPError
 from image.models import ImageError
+from firewall.models import FirewallError
 from virtance.models import Virtance, VirtanceError
+from floating_ip.models import FloatIPError
 
 
 class IssueVirtanceFilter(django_filters.FilterSet):

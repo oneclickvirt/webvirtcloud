@@ -1,13 +1,12 @@
-from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.shortcuts import redirect, get_object_or_404
 from django_filters.views import FilterView
-from django_tables2 import RequestConfig, SingleTableMixin
-
-from admin.mixins import AdminTemplateView, AdminView
-from firewall.models import Firewall, FirewallError, FirewallVirtance, Rule
+from django_tables2 import SingleTableMixin, RequestConfig
 
 from .filters import FirewallFilter
-from .tables import FirewallErrorTable, FirewallHTMxTable, FirewallRuleTable, FirewallVirtanceTable
+from .tables import FirewallHTMxTable, FirewallRuleTable, FirewallVirtanceTable, FirewallErrorTable
+from admin.mixins import AdminView, AdminTemplateView
+from firewall.models import Firewall, Rule, FirewallVirtance, FirewallError
 
 
 class AdminFirewallIndexView(SingleTableMixin, FilterView, AdminView):

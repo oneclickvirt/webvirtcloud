@@ -1,12 +1,12 @@
 from django.urls import re_path
-
 from .views import (
-    AdminIssueFirewallView,
-    AdminIssueFloatIPView,
-    AdminIssueImageView,
     AdminIssueIndexView,
     AdminIssueVirtanceView,
+    AdminIssueImageView,
+    AdminIssueFirewallView,
+    AdminIssueFloatIPView,
 )
+
 
 urlpatterns = [
     re_path(r"$", AdminIssueIndexView.as_view(), name="admin_issue_index"),

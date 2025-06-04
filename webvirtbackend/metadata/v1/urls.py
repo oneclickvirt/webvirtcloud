@@ -1,36 +1,34 @@
 from django.urls import re_path
 
+from .views import MetadataIndex, MetadataID, MetadataHostname, MetadataUserData, MetadataVendorData
+from .views import MetadataPublicKeys, MetadataInterfaces, MetadataDNS, MetadataDNSNameservers
 from .views import (
-    MetadataDNS,
-    MetadataDNSNameservers,
-    MetadataHostname,
-    MetadataID,
-    MetadataIndex,
-    MetadataInterfaces,
-    MetadataInterfacesPrivate,
-    MetadataInterfacesPrivateData,
-    MetadataInterfacesPrivateIPv4,
-    MetadataInterfacesPrivateIPv4Address,
-    MetadataInterfacesPrivateIPv4Gateway,
-    MetadataInterfacesPrivateIPv4Netmask,
-    MetadataInterfacesPrivateMAC,
-    MetadataInterfacesPrivateType,
-    MetadataInterfacesPublic,
     MetadataInterfacesPublicComputeIPv4,
     MetadataInterfacesPublicComputeIPv4Address,
-    MetadataInterfacesPublicComputeIPv4Gateway,
     MetadataInterfacesPublicComputeIPv4Netmask,
+    MetadataInterfacesPublicComputeIPv4Gateway,
+)
+from .views import (
+    MetadataInterfacesPublic,
     MetadataInterfacesPublicData,
-    MetadataInterfacesPublicIPv4,
-    MetadataInterfacesPublicIPv4Address,
-    MetadataInterfacesPublicIPv4Gateway,
-    MetadataInterfacesPublicIPv4Netmask,
     MetadataInterfacesPublicMAC,
     MetadataInterfacesPublicType,
-    MetadataPublicKeys,
-    MetadataUserData,
-    MetadataVendorData,
+    MetadataInterfacesPublicIPv4,
+    MetadataInterfacesPublicIPv4Address,
+    MetadataInterfacesPublicIPv4Netmask,
+    MetadataInterfacesPublicIPv4Gateway,
 )
+from .views import (
+    MetadataInterfacesPrivate,
+    MetadataInterfacesPrivateData,
+    MetadataInterfacesPrivateMAC,
+    MetadataInterfacesPrivateType,
+    MetadataInterfacesPrivateIPv4,
+    MetadataInterfacesPrivateIPv4Address,
+    MetadataInterfacesPrivateIPv4Netmask,
+    MetadataInterfacesPrivateIPv4Gateway,
+)
+
 
 urlpatterns = [
     re_path(r"$", MetadataIndex.as_view(), name="metadata_v1_index"),

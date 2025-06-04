@@ -13,9 +13,6 @@ __pycache__/
 # Database data
 .mysql
 
-# IDE
-.idea/
-
 # Distribution / packaging
 .Python
 build/

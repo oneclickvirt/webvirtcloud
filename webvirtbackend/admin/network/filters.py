@@ -1,7 +1,7 @@
 import django_filters
 from django.db.models import Q
 
-from network.models import IPAddress, Network
+from network.models import Network, IPAddress
 
 
 class NetworkFilter(django_filters.FilterSet):

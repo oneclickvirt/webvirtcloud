@@ -3,12 +3,12 @@ Django production settings for WebVirtCloud project.
 
 """
 
-from .base import *  # noqa: F403
+from .base import *
 
 # Django settings
 DEBUG = False
 
 try:
-    from .local import *  # noqa: F403
+    from .local import *
 except ImportError:
     pass

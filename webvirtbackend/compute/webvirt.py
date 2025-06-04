@@ -1,14 +1,12 @@
-from base64 import b64encode
-from urllib.parse import urlencode
-
-import requests
 import urllib3
+import requests
+from base64 import b64encode
 from django.conf import settings
-from requests.exceptions import ConnectionError, ConnectTimeout
+from urllib.parse import urlencode
+from requests.exceptions import ConnectTimeout
+
 
 urllib3.disable_warnings()
-
-COMPUTE_VERSION = settings.WEBVIRTCOMPUTE_VERSION
 
 
 def vm_name(virtance_id):
@@ -40,8 +38,6 @@ class WebVirtCompute(object):
             return response
         except ConnectTimeout:
             return {"detail": "Connection to compute timeout."}
-        except ConnectionError:
-            return {"detail": "Failed to establish a new connection to compoute. Check the hostname or IP address."}
 
     def _make_post(self, url, params):
         url = self._url() + url
@@ -50,8 +46,6 @@ class WebVirtCompute(object):
             return response
         except ConnectTimeout:
             return {"detail": "Connection to compute timeout."}
-        except ConnectionError:
-            return {"detail": "Failed to establish a new connection to compoute. Check the hostname or IP address ."}
 
     def _make_put(self, url, params):
         url = self._url() + url
@@ -60,8 +54,6 @@ class WebVirtCompute(object):
             return response
         except ConnectTimeout:
             return {"detail": "Connection to compute timeout."}
-        except ConnectionError:
-            return {"detail": "Failed to establish a new connection to compoute. Check the hostname or IP address."}
 
     def _make_delete(self, url, params=None):
         url = self._url() + url
@@ -70,13 +62,10 @@ class WebVirtCompute(object):
             return response
         except ConnectTimeout:
             return {"detail": "Connection to compute timeout."}
-        except ConnectionError:
-            return {"detail": "Failed to establish a new connection to compoute. Check the hostname or IP address."}
 
     def _process_response(self, response, json=True):
         if isinstance(response, dict):
             return response
-
         if response.status_code == 204:
             return {}
         if json:
@@ -84,13 +73,6 @@ class WebVirtCompute(object):
             if body:
                 if isinstance(body, bytes) and hasattr(body, "decode"):
                     body = body.decode("utf-8")
-                if hasattr(response, "headers"):
-                    version_header = response.headers.get("x-api-version")
-                    if version_header is None or version_header != COMPUTE_VERSION:
-                        return {
-                            "detail": f"WebVirtCompute version mismatch: expected {COMPUTE_VERSION}, "
-                            f"got {version_header}. Please update your WebVirtCompute daemon."
-                        }
                 return body
         return response.raw
 

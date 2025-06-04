@@ -1,8 +1,7 @@
 from rest_framework import serializers
 
-from size.models import Size
-
 from .models import Region
+from size.models import Size
 
 
 class RegionSerializer(serializers.ModelSerializer):

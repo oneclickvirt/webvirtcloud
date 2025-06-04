@@ -1,44 +1,14 @@
 from django.conf import settings
-
-from network.models import IPAddress, Network
-from virtance.provision import ansible_play
-from virtance.tasks import create_virtance, delete_virtance
-from virtance.utils import check_ssh_connect, decrypt_data, virtance_error
 from webvirtcloud.celery import app
 
 from .models import LBaaS, LBaaSForwadRule, LBaaSVirtance
+from network.models import Network, IPAddress
+from virtance.tasks import create_virtance, delete_virtance
+from virtance.provision import ansible_play
+from virtance.utils import check_ssh_connect, decrypt_data, virtance_error
+
 
 provision_tasks = [
-    {
-        "name": "Disable systemd-resolved service",
-        "action": {
-            "module": "systemd",
-            "args": {"name": "systemd-resolved", "state": "stopped", "enabled": "no"},
-        },
-    },
-    {
-        "name": "Remove resolv.conf symlink",
-        "action": {
-            "module": "file",
-            "args": {
-                "path": "/etc/resolv.conf",
-                "state": "absent",
-            },
-        },
-    },
-    {
-        "name": "Create resolv.conf file with custom DNS servers",
-        "action": {
-            "module": "copy",
-            "args": {
-                "dest": "/etc/resolv.conf",
-                "content": "nameserver 1.1.1.1\nnameserver 8.8.8.8\n",
-                "owner": "root",
-                "group": "root",
-                "mode": "0644",
-            },
-        },
-    },
     {
         "name": "Template HAProxy configuration",
         "action": {
@@ -97,6 +67,36 @@ provision_tasks = [
     {
         "name": "Restart prometheus service",
         "action": {"module": "systemd", "args": {"name": "prometheus", "state": "restarted"}},
+    },
+    {
+        "name": "Disable systemd-resolved service",
+        "action": {
+            "module": "systemd",
+            "args": {"name": "systemd-resolved", "state": "stopped", "enabled": "no"},
+        },
+    },
+    {
+        "name": "Remove resolv.conf symlink",
+        "action": {
+            "module": "file",
+            "args": {
+                "path": "/etc/resolv.conf",
+                "state": "absent",
+            },
+        },
+    },
+    {
+        "name": "Create resolv.conf",
+        "action": {
+            "module": "template",
+            "args": {
+                "src": "ansible/lbaas/resolv.conf.j2",
+                "dest": "/etc/resolv.conf",
+                "owner": "root",
+                "group": "root",
+                "mode": "0644",
+            },
+        },
     },
     {
         "name": "Listen SSH on private IP address",

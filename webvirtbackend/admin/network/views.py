@@ -1,18 +1,16 @@
 from ipaddress import ip_network
-
-from crispy_forms.helper import FormHelper
 from django.contrib import messages
-from django.shortcuts import redirect
 from django.urls import reverse_lazy
-from django_filters.views import FilterView
 from django_tables2 import SingleTableMixin
+from django_filters.views import FilterView
+from django.shortcuts import redirect
+from crispy_forms.helper import FormHelper
 
-from admin.mixins import AdminDeleteView, AdminFormView, AdminUpdateView, AdminView
-from network.models import IPAddress, Network
-
-from .filters import NetworkFilter, NetworkListFilter
+from network.models import Network, IPAddress
 from .forms import FormNetwork
+from .filters import NetworkFilter, NetworkListFilter
 from .tables import NetworkHTMxTable, NetworkListHTMxTable
+from admin.mixins import AdminView, AdminFormView, AdminUpdateView, AdminDeleteView
 
 
 class AdminNetworkIndexView(SingleTableMixin, FilterView, AdminView):

@@ -1,6 +1,5 @@
 from django.urls import re_path
-
-from .views import AdminFirewallDataView, AdminFirewallIndexView, AdminFirewallResetEventAction
+from .views import AdminFirewallIndexView, AdminFirewallDataView, AdminFirewallResetEventAction
 
 urlpatterns = [
     re_path(r"$", AdminFirewallIndexView.as_view(), name="admin_firewall_index"),

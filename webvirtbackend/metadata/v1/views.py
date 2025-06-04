@@ -1,10 +1,9 @@
 from django.http import HttpResponse, JsonResponse
 
-from keypair.models import KeyPairVirtance
 from lbaas.models import LBaaS
-from network.models import IPAddress, Network
+from keypair.models import KeyPairVirtance
+from network.models import Network, IPAddress
 from virtance.utils import decrypt_data, make_ssh_public
-
 from .utils import MetadataMixin
 
 
@@ -13,16 +12,12 @@ class MetadataV1Json(MetadataMixin):
         """
         Retrieve an Metadata JSON for a Virtance
         """
-        user_data = ""
         vendor_data = ""
         nameservers = []
         public_keys = []
 
         if self.virtance is None:
             return HttpResponse("Not Found", status=404)
-
-        if self.virtance.user_data:
-            user_data = self.virtance.user_data
 
         for i in KeyPairVirtance.objects.filter(virtance=self.virtance):
             public_keys.append(i.keypair.public_key)
@@ -71,7 +66,7 @@ class MetadataV1Json(MetadataMixin):
         response = {
             "id": self.virtance.id,
             "hostname": self.virtance.name,
-            "user-data": user_data,
+            "user-data": self.virtance.user_data,
             "vendor-data": vendor_data,
             "public-keys": public_keys,
             "region": self.virtance.region.slug,

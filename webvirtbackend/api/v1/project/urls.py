@@ -1,6 +1,6 @@
 from django.urls import re_path
 
-from project.views import ProjectDataAPI, ProjectDefaultAPI, ProjectListAPI
+from project.views import ProjectDefaultAPI, ProjectListAPI, ProjectDataAPI
 
 urlpatterns = [
     re_path(r"default/?$", ProjectDefaultAPI.as_view(), name="project_default_api"),

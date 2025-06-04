@@ -1,19 +1,18 @@
-from crispy_forms.bootstrap import InlineCheckboxes
-from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout
 from django import forms
 from django.db.models import Q
 from django.urls import reverse_lazy
-from django_filters.views import FilterView
 from django_tables2 import SingleTableMixin
+from django_filters.views import FilterView
+from crispy_forms.layout import Layout
+from crispy_forms.helper import FormHelper
+from crispy_forms.bootstrap import InlineCheckboxes
 
-from admin.mixins import AdminDeleteView, AdminFormView, AdminUpdateView, AdminView
 from image.models import Image
 from region.models import Region
-
 from .filters import TemplateFilter
-from .forms import CustomModelMultipleChoiceField, FormTemplate
 from .tables import TemplateHTMxTable
+from .forms import FormTemplate, CustomModelMultipleChoiceField
+from admin.mixins import AdminView, AdminFormView, AdminUpdateView, AdminDeleteView
 
 
 class AdminTemplateIndexView(SingleTableMixin, FilterView, AdminView):
@@ -23,9 +22,8 @@ class AdminTemplateIndexView(SingleTableMixin, FilterView, AdminView):
 
     def get_queryset(self):
         return Image.objects.filter(
-            Q(type=Image.DISTRIBUTION) | Q(type=Image.APPLICATION) | Q(type=Image.LBAAS) | Q(type=Image.DBAAS),
-            is_deleted=False,
-        ).order_by("id", "type")
+            Q(type=Image.DISTRIBUTION) | Q(type=Image.APPLICATION) | Q(type=Image.LBAAS), is_deleted=False
+        )
 
     def get_template_names(self):
         if self.request.htmx:

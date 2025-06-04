@@ -1,37 +1,35 @@
 import time
-from decimal import Decimal
 from uuid import uuid4
-
+from decimal import Decimal
 from django.conf import settings
-from django.db.models import Count, Exists, F, OuterRef
 from django.utils import timezone
+from django.db.models import F, Count, Exists, OuterRef
 from passlib.hash import sha512_crypt
 
-from compute.helper import assign_free_compute
-from compute.models import Compute
-from compute.webvirt import WebVirtCompute, vm_name
-from dbaas.models import DBaaS
-from firewall.models import FirewallVirtance
-from firewall.tasks import firewall_detach
-from floating_ip.models import FloatIP
-from floating_ip.tasks import unassign_floating_ip
-from image.models import Image, SnapshotCounter
-from image.tasks import image_delete
-from keypair.models import KeyPairVirtance
-from lbaas.models import LBaaS, LBaaSVirtance
-from lbaas.shared import shared_reload_lbaas
-from network.helper import (
-    assign_free_ipv4_compute,
-    assign_free_ipv4_private,
-    assign_free_ipv4_public,
-)
-from network.models import IPAddress, Network
-from size.models import Size
 from webvirtcloud.celery import app
 from webvirtcloud.email import send_email
-
+from compute.webvirt import WebVirtCompute, vm_name
+from compute.helper import assign_free_compute
+from network.helper import (
+    assign_free_ipv4_public,
+    assign_free_ipv4_compute,
+    assign_free_ipv4_private,
+)
+from lbaas.models import LBaaS, LBaaSVirtance
+from image.tasks import image_delete
+from firewall.tasks import firewall_detach
+from floating_ip.tasks import unassign_floating_ip
+from size.models import Size
+from compute.models import Compute
+from floating_ip.models import FloatIP
+from keypair.models import KeyPairVirtance
+from network.models import Network, IPAddress
+from firewall.models import FirewallVirtance
+from image.models import Image, SnapshotCounter
+from lbaas.shared import shared_reload_lbaas
 from .models import Virtance, VirtanceCounter
-from .utils import decrypt_data, make_ssh_public, virtance_error
+from .utils import virtance_error, decrypt_data, make_ssh_public
+
 
 BACKUP_COST_RATIO = settings.BACKUP_COST_PERCENTAGE / 100
 
@@ -101,15 +99,10 @@ def create_virtance(virtance_id, password=None, send_email=True):
         private_key = decrypt_data(lbaas.private_key)
         keypairs.append(make_ssh_public(private_key))
 
-    if virtance.type == Virtance.DBAAS:
-        dbaas = DBaaS.objects.get(virtance_id=virtance_id)
-        private_key = decrypt_data(dbaas.private_key)
-        keypairs.append(make_ssh_public(private_key))
-
     if compute and ipv4_public and ipv4_compute and ipv4_private:
         # TODO: rebuild webvirtcompute with new API for LBAAS type images
         image_type = virtance.template.type
-        if virtance.template.type == Image.LBAAS or virtance.template.type == Image.DBAAS:
+        if virtance.template.type == Image.LBAAS:
             image_type = "distribution"
         images = [
             {
@@ -292,7 +285,6 @@ def action_virtance(virtance_id, action):
                 virtance.active()
     if error is None:
         virtance.reset_event()
-    return error
 
 
 @app.task
@@ -303,8 +295,7 @@ def resize_virtance(virtance_id, size_id):
 
     wvcomp = wvcomp_conn(virtance.compute)
     res = wvcomp.resize_virtance(virtance.id, size.vcpu, size.memory, size.disk)
-    error = res.get("detail")
-    if error is None:
+    if res.get("detail") is None:
         virtance.active()
         virtance.reset_event()
         virtance.size = size
@@ -333,8 +324,7 @@ def resize_virtance(virtance_id, size_id):
             started=current_time,
         )
     else:
-        virtance_error(virtance_id, error, "resize")
-    return error
+        virtance_error(virtance_id, res.get("detail"), "resize")
 
 
 @app.task
@@ -342,8 +332,7 @@ def snapshot_virtance(virtance_id, display_name):
     virtance = Virtance.objects.get(pk=virtance_id)
     wvcomp = wvcomp_conn(virtance.compute)
     res = wvcomp.snapshot_virtance(virtance.id, uuid4().hex)
-    error = res.get("detail")
-    if error is None:
+    if res.get("detail") is None:
         image = Image.objects.create(
             user=virtance.user,
             source=virtance,
@@ -363,8 +352,7 @@ def snapshot_virtance(virtance_id, display_name):
         image.reset_event()
         virtance.reset_event()
     else:
-        virtance_error(virtance_id, error, "snapshot")
-    return error
+        virtance_error(virtance_id, res.get("detail"), "snapshot")
 
 
 @app.task
@@ -401,14 +389,12 @@ def restore_virtance(virtance_id, image_id):
     virtance = Virtance.objects.get(pk=virtance_id)
     wvcomp = wvcomp_conn(virtance.compute)
     res = wvcomp.restore_virtance(virtance_id, image.file_name, image.disk_size)
-    error = res.get("detail")
-    if error is None:
+    if res.get("detail") is None:
         image.reset_event()
         virtance.active()
         virtance.reset_event()
     else:
-        virtance_error(virtance_id, error, "restore")
-    return error
+        virtance_error(virtance_id, res.get("detail"), "restore")
 
 
 @app.task
@@ -625,22 +611,3 @@ def backups_delete(virtance_id):
         virtance.disable_backups()
         virtance.active()
         virtance.reset_event()
-    else:
-        return "When deleting backups, some of them were not deleted."
-
-
-@app.task
-def snapshots_delete(virtance_id):
-    virtance = Virtance.objects.get(pk=virtance_id)
-    snapshots = Image.objects.filter(source=virtance, type=Image.SNAPSHOT, is_deleted=False)
-    number_of_snapshots = len(snapshots)
-
-    for snapshot in snapshots:
-        if image_delete(snapshot.id) is True:
-            number_of_snapshots -= 1
-
-    if number_of_snapshots == 0:
-        virtance.active()
-        virtance.reset_event()
-    else:
-        return "When deleting snapshots, some of them were not deleted."

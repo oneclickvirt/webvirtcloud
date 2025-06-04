@@ -1,6 +1,5 @@
 from django.urls import re_path
-
-from image.views import ImageActionAPI, ImageDataAPI, ImageListAPI, ImageSnapshotsAPI
+from image.views import ImageListAPI, ImageDataAPI, ImageActionAPI, ImageSnapshotsAPI
 
 urlpatterns = [
     re_path(r"$", ImageListAPI.as_view(), name="image_list_api"),

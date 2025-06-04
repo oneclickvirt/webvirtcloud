@@ -1,15 +1,13 @@
 from uuid import UUID
-
-from django.http.response import Http404
 from django.utils import timezone
+from django.http.response import Http404
 from rest_framework import status
-from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from webvirtcloud.views import error_message_response
+from rest_framework.response import Response
 
 from .models import Project
 from .serializers import ProjectSerializer
+from webvirtcloud.views import error_message_response
 
 
 class ProjectDefaultAPI(APIView):

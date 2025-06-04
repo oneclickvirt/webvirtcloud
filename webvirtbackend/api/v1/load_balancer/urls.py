@@ -1,6 +1,6 @@
 from django.urls import re_path
 
-from lbaas.views import LBaaSDataAPI, LBaaSForwardRulesAPI, LBaaSListAPI, LBaaSVirtancesAPI
+from lbaas.views import LBaaSListAPI, LBaaSDataAPI, LBaaSVirtancesAPI, LBaaSForwardRulesAPI
 
 urlpatterns = [
     re_path(r"$", LBaaSListAPI.as_view(), name="lbaas_list_api"),

@@ -1,16 +1,14 @@
-from django.conf import settings
 from rest_framework import serializers
 
-from image.models import Image
-from network.models import IPAddress, Network
-from region.models import Region
 from region.serializers import RegionSerializer
 from size.models import Size
+from image.models import Image
+from region.models import Region
 from virtance.models import Virtance
-from virtance.utils import encrypt_data, make_ssh_private
-
-from .models import LBaaS, LBaaSForwadRule, LBaaSVirtance
+from network.models import IPAddress, Network
+from virtance.utils import make_ssh_private, encrypt_data
 from .tasks import create_lbaas, reload_lbaas
+from .models import LBaaS, LBaaSForwadRule, LBaaSVirtance
 
 
 class HeathCheckSerializer(serializers.Serializer):
@@ -95,7 +93,7 @@ class LBaaSSerializer(serializers.ModelSerializer):
             if check_region.is_active is False:
                 raise serializers.ValidationError({"region": ["Region is not active."]})
             if check_region.features.filter(name="load_balancer").exists() is False:
-                raise serializers.ValidationError({"region": ["Region does not support load balancer feature."]})
+                raise serializers.ValidationError({"region": ["Region does not support load balancer."]})
         except Region.DoesNotExist:
             raise serializers.ValidationError({"region": ["Region not found."]})
 
@@ -112,7 +110,7 @@ class LBaaSSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"forwarding_rules": ["Duplicate forwarding rules."]})
 
         # Check duplicate forwarding rules on entry data
-        entry_data = [f"{rule.get('entry_protcol')}_{rule.get('entry_port')}" for rule in forwarding_rules]
+        entry_data = [f'{rule.get("entry_protcol")}_{rule.get("entry_port")}' for rule in forwarding_rules]
         if len(entry_data) != len(set(entry_data)):
             raise serializers.ValidationError({"forwarding_rules": ["Duplicate entry_protcol and entry_port."]})
 
@@ -221,9 +219,9 @@ class LBaaSSerializer(serializers.ModelSerializer):
         redirect_http_to_https = validated_data.get("redirect_http_to_https")
         enc_private_key = encrypt_data(make_ssh_private())
 
-        size = Size.objects.get(slug=settings.LBAAS_SIZE_NAME, type=Size.LBAAS, is_deleted=False)
+        size = Size.objects.filter(type=Size.LBAAS, is_deleted=False).first()
         region = Region.objects.get(slug=region_slug, is_deleted=False)
-        template = Image.objects.get(slug=settings.LBAAS_TEMPLATE_NAME, type=Image.LBAAS, is_deleted=False)
+        template = Image.objects.filter(type=Image.LBAAS, is_deleted=False).first()
 
         stick_session_enabled = True if sticky_sessions else False
         stick_session_cookie_name = "WVC-LB"
@@ -508,7 +506,7 @@ class LBaaSAddRuleSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"forwarding_rules": ["Duplicate forwarding rules."]})
 
         # Check duplicate forwarding rules on entry data
-        entry_data = [f"{rule.get('entry_protcol')}_{rule.get('entry_port')}" for rule in forwarding_rules]
+        entry_data = [f'{rule.get("entry_protcol")}_{rule.get("entry_port")}' for rule in forwarding_rules]
         if len(entry_data) != len(set(entry_data)):
             raise serializers.ValidationError({"forwarding_rules": ["Duplicate entry_protcol and entry_port."]})
 
@@ -607,7 +605,7 @@ class LBaaSUpdateRuleSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"forwarding_rules": ["Duplicate forwarding rules."]})
 
         # Check duplicate forwarding rules on entry data
-        entry_data = [f"{rule.get('entry_protcol')}_{rule.get('entry_port')}" for rule in forwarding_rules]
+        entry_data = [f'{rule.get("entry_protcol")}_{rule.get("entry_port")}' for rule in forwarding_rules]
         if len(entry_data) != len(set(entry_data)):
             raise serializers.ValidationError({"forwarding_rules": ["Duplicate entry_protcol and entry_port."]})
 

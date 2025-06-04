@@ -1,32 +1,21 @@
 import re
-
 from django.db.models import Q
 from rest_framework import serializers
 
-from compute.webvirt import WebVirtCompute
-from image.models import Image
-from image.serializers import ImageSerializer
-from keypair.models import KeyPair, KeyPairVirtance
-from network.models import IPAddress
-from region.models import Region
-from region.serializers import RegionSerializer
 from size.models import Size
+from image.models import Image
+from region.models import Region
+from network.models import IPAddress
+from keypair.models import KeyPair, KeyPairVirtance
 from size.serializers import SizeSerializer
-
+from image.serializers import ImageSerializer
+from region.serializers import RegionSerializer
+from compute.webvirt import WebVirtCompute
 from .models import Virtance
-from .tasks import (
-    action_virtance,
-    backups_delete,
-    create_virtance,
-    disable_recovery_mode_virtance,
-    enable_recovery_mode_virtance,
-    rebuild_virtance,
-    reset_password_virtance,
-    resize_virtance,
-    restore_virtance,
-    snapshot_virtance,
-)
 from .utils import virtance_error
+from .tasks import create_virtance, action_virtance, resize_virtance, reset_password_virtance, rebuild_virtance
+from .tasks import enable_recovery_mode_virtance, disable_recovery_mode_virtance
+from .tasks import backups_delete, snapshot_virtance, restore_virtance
 
 
 class VirtanceSerializer(serializers.ModelSerializer):
@@ -340,9 +329,7 @@ class VirtanceActionSerializer(serializers.Serializer):
             if attrs.get("image") is None:
                 raise serializers.ValidationError({"image": ["This field is required."]})
             try:
-                Image.objects.get(
-                    Q(type=Image.SNAPSHOT) | Q(type=Image.BACKUP), id=attrs.get("image"), source=virtance, user=user
-                )
+                Image.objects.get(Q(type=Image.SNAPSHOT) | Q(type=Image.BACKUP), id=attrs.get("image"), user=user)
             except Image.DoesNotExist:
                 raise serializers.ValidationError({"image": ["Image not found."]})
 
@@ -410,7 +397,7 @@ class VirtanceActionSerializer(serializers.Serializer):
             snapshot_virtance.delay(virtance.id, name)
 
         if action == "restore":
-            snapshot = Image.objects.get(id=image, source=virtance)
+            snapshot = Image.objects.get(id=image)
 
             if snapshot.event is not None:
                 raise serializers.ValidationError("The image already has event.")

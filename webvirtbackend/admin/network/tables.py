@@ -1,6 +1,6 @@
 import django_tables2 as tables
 
-from network.models import Network
+from network.models import Network, IPAddress
 
 
 class NetworkHTMxTable(tables.Table):

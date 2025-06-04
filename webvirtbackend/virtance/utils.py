@@ -1,16 +1,17 @@
-import socket
 import time
-from base64 import b64decode, b64encode, urlsafe_b64decode
+import socket
+import paramiko
 from io import StringIO
 from random import choice
-from string import ascii_letters, digits
-
-import paramiko
-from cryptography.fernet import Fernet
-from django.conf import settings
 from paramiko import RSAKey
+from django.conf import settings
+from cryptography.fernet import Fernet
+from string import digits, ascii_letters
+from base64 import b64encode, b64decode, urlsafe_b64decode
+
 
 from .models import VirtanceError, VirtanceHistory
+
 
 NOVNC_PASSWD_PREFIX = settings.NOVNC_PASSWD_PREFIX_LENGHT
 NOVNC_PASSWD_SUFFIX = settings.NOVNC_PASSWD_SUFFIX_LENGHT
@@ -63,14 +64,16 @@ def decrypt_data(data, key=None):
     return decrypted_data.decode()
 
 
-def check_ssh_auth(hostname, password=None, private_key=None, username="root"):
+def check_ssh_auth(hostname, password=None, private_key=None, username="root", timeout=180):
     pkey = None
+    elapsed_time = 0
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     if private_key:
         pkey = paramiko.RSAKey.from_private_key(StringIO(private_key))
 
+    while elapsed_time < timeout:
         try:
             ssh.connect(
                 hostname=hostname,
@@ -82,7 +85,7 @@ def check_ssh_auth(hostname, password=None, private_key=None, username="root"):
             )
             return True
         except Exception:
-            pass
+            time.sleep(1)
 
         finally:
             ssh.close()

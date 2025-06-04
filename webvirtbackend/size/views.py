@@ -1,8 +1,8 @@
-from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.response import Response
 
-from .models import DBMS, Size
-from .serializers import DBMSSerializer, SizeSerializer
+from .models import Size
+from .serializers import SizeSerializer
 
 
 class SizeListAPI(APIView):
@@ -18,18 +18,3 @@ class SizeListAPI(APIView):
         """
         serilizator = self.class_serializer(self.get_queryset(), many=True)
         return Response({"sizes": serilizator.data})
-
-
-class DBMSListAPI(APIView):
-    class_serializer = DBMSSerializer
-
-    def get_queryset(self):
-        return DBMS.objects.filter(is_deleted=False)
-
-    def get(self, request, *args, **kwargs):
-        """
-        List All DBMS
-        ---
-        """
-        serilizator = self.class_serializer(self.get_queryset(), many=True)
-        return Response({"dbms": serilizator.data})

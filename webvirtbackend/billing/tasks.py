@@ -1,14 +1,14 @@
-from django.conf import settings
 from django.db.models import Sum
+from django.conf import settings
 from django.utils import timezone
 
-from account.models import User
-from billing.models import Balance, Invoice
-from floating_ip.models import FloatIPCounter
-from image.models import SnapshotCounter
-from virtance.models import VirtanceCounter
 from webvirtcloud.celery import app
 from webvirtcloud.email import send_email
+from account.models import User
+from billing.models import Invoice, Balance
+from image.models import SnapshotCounter
+from virtance.models import VirtanceCounter
+from floating_ip.models import FloatIPCounter
 
 
 @app.task

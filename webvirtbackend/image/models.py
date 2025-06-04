@@ -1,7 +1,6 @@
 from uuid import uuid4
-
-from django.conf import settings
 from django.db import models
+from django.conf import settings
 from django.utils import timezone
 
 
@@ -11,14 +10,12 @@ class Image(models.Model):
     ARCH_CHOICES = [(X86_64, "X64"), (AARCH64, "ARM64")]
 
     LBAAS = "lbaas"
-    DBAAS = "dbaas"
     CUSTOM = "custom"
     BACKUP = "backup"
     SNAPSHOT = "snapshot"
     APPLICATION = "application"
     DISTRIBUTION = "distribution"
     TYPE_CHOICES = (
-        (DBAAS, "Database"),
         (LBAAS, "Load Balancer"),
         (CUSTOM, "Custom"),
         (BACKUP, "Backup"),

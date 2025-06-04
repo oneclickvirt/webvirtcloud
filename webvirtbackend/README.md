@@ -28,13 +28,6 @@ cd webvirtcloud/webvirtbackend/
 docker compose build
 ```
 
-Push to hub
-
-```bash
-docker tag webvirtbackend:dev spiritlhl/webvirtbackend:dev
-docker push spiritlhl/webvirtbackend:dev
-```
-
 4. Run the Docker container:
 ```bash
 docker compose up -d
@@ -47,8 +40,7 @@ docker compose exec backend python3 manage.py migrate
 
 6. Load the initial data:
 ```bash
-docker compose exec backend python3 manage.py sync_fixtures --dry-run
-docker compose exec backend python3 manage.py sync_fixtures
+docker compose exec backend python3 manage.py loaddata initial_data
 ```
 
 7. Load admin user:

@@ -1,15 +1,7 @@
 from django.urls import re_path
-
-from .views import (
-    AdminVirtanceConsoleView,
-    AdminVirtanceDataView,
-    AdminVirtanceIndexView,
-    AdminVirtancePowerCyrcleAction,
-    AdminVirtancePowerOffAction,
-    AdminVirtancePowerOnAction,
-    AdminVirtanceRecreateAction,
-    AdminVirtanceResetEventAction,
-)
+from .views import AdminVirtanceIndexView, AdminVirtanceDataView, AdminVirtanceConsoleView
+from .views import AdminVirtanceResetEventAction, AdminVirtanceRecreateAction
+from .views import AdminVirtancePowerOnAction, AdminVirtancePowerOffAction, AdminVirtancePowerCyrcleAction
 
 urlpatterns = [
     re_path(r"$", AdminVirtanceIndexView.as_view(), name="admin_virtance_index"),

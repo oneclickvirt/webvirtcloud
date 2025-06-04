@@ -1,9 +1,8 @@
 import re
 from uuid import uuid4
-
-from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 
 def validate_ports(value):

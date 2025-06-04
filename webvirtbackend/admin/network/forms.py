@@ -1,10 +1,8 @@
-from ipaddress import ip_address, ip_network
-
-from crispy_forms.helper import FormHelper
 from django import forms
-
-from network.models import Network
+from crispy_forms.helper import FormHelper
+from ipaddress import ip_network, ip_address
 from region.models import Region
+from network.models import Network
 
 
 class CustomModelChoiceField(forms.ModelChoiceField):

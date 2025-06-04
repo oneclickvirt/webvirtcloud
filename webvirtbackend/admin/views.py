@@ -1,8 +1,7 @@
-from django.contrib.auth import login
-from django.contrib.auth.views import LoginView, LogoutView
-from django.http import HttpResponseRedirect
 from django.urls import reverse_lazy
-
+from django.contrib.auth import login
+from django.http import HttpResponseRedirect
+from django.contrib.auth.views import LoginView, LogoutView
 from .forms import AdminAuthForm
 from .mixins import AdminTemplateView, AdminView
 

@@ -1,6 +1,6 @@
 import django_tables2 as tables
 
-from firewall.models import Firewall, FirewallError, FirewallVirtance, Rule
+from firewall.models import Firewall, Rule, FirewallVirtance, FirewallError
 
 
 class FirewallHTMxTable(tables.Table):
@@ -26,7 +26,7 @@ class FirewallRuleTable(tables.Table):
     ports = tables.Column(empty_values=(), verbose_name="Ports")
 
     def render_type(self, value, record):
-        if record.is_system:
+        if record.is_system == True:
             return "System"
         return "User"
 

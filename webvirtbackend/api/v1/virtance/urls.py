@@ -1,19 +1,8 @@
 from django.urls import re_path
 
-from virtance.views import (
-    VirtanceActionAPI,
-    VirtanceBackupsAPI,
-    VirtanceConsoleAPI,
-    VirtanceDataAPI,
-    VirtanceFirewallAPI,
-    VirtanceHistoryAPI,
-    VirtanceListAPI,
-    VirtanceMetricsCpuAPI,
-    VirtanceMetricsDiskAPI,
-    VirtanceMetricsMemAPI,
-    VirtanceMetricsNetAPI,
-    VirtanceSnapshotsAPI,
-)
+from virtance.views import VirtanceListAPI, VirtanceDataAPI, VirtanceActionAPI, VirtanceConsoleAPI
+from virtance.views import VirtanceMetricsCpuAPI, VirtanceMetricsMemAPI, VirtanceMetricsNetAPI, VirtanceMetricsDiskAPI
+from virtance.views import VirtanceBackupsAPI, VirtanceFirewallAPI, VirtanceSnapshotsAPI, VirtanceHistoryAPI
 
 urlpatterns = [
     re_path(r"$", VirtanceListAPI.as_view(), name="virtance_list_api"),
