@@ -341,6 +341,7 @@ EOF
     cat env.local
     _yellow "Starting WebVirtCloud..."
     _yellow "启动WebVirtCloud..."
+    chmod 777 webvirtcloud.sh
     ./webvirtcloud.sh start
     if [ $? -eq 0 ]; then
         _green "WebVirtCloud installation completed successfully!"
