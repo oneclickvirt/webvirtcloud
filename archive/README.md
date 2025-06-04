@@ -89,7 +89,7 @@ Ensure your firewall allows access to ports 80 (HTTP) and 443 (HTTPS) for the We
 
 ## Default Credentials
 
-- **Username:** `admin@webvirt.cloud`
+- **Username:** `admin@spiritlhl.net`
 - **Password:** `admin`
 
 > **Warning:** It is critical to change the default credentials immediately after the first login to ensure security.

@@ -352,7 +352,7 @@ EOF
         _green "Admin Panel: https://${DOMAIN_NAME}/admin/"
         _green "Ensure your firewall allows access to ports 80 (HTTP) and 443 (HTTPS) for the WebVirtCloud interface."
         _green "Default Credentials:"
-        _green "Username: admin@webvirt.cloud"
+        _green "Username: admin@spiritlhl.net"
         _green "Password: admin"
         _green "WebVirtCloud安装成功完成！"
         _green "您可以通过以下地址访问WebVirtCloud界面"
@@ -360,7 +360,7 @@ EOF
         _green "管理员面板: https://${DOMAIN_NAME}/admin/"
         _green "请确保您的防火墙允许访问WebVirtCloud界面的80端口（HTTP）和443端口（HTTPS）。"
         _green "默认凭据："
-        _green "用户名: admin@webvirt.cloud"
+        _green "用户名: admin@spiritlhl.net"
         _green "密码: admin"
     else
         _red "WebVirtCloud failed to start. Please check the logs for more information."

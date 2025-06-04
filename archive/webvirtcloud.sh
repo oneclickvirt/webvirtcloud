@@ -92,7 +92,7 @@ function start_webvirtcloud() {
 }
 
 function create_default_admin() {
-    echo "Creating 'admin@webvirt.cloud' user..."
+    echo "Creating 'admin@spiritlhl.net' user..."
     $DOCKER_COMPOSE_COMMAND exec backend python manage.py loaddata account/fixtures/admin.json
 }
 
