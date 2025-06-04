@@ -217,7 +217,7 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 # Domain and URL settings
 #
 # Base domain
-BASE_DOMAIN = os.environ.get("DOMAIN_NAME", "webvirt.cloud")
+BASE_DOMAIN = os.environ.get("DOMAIN_NAME", "spiritlhl.net")
 
 # Security settings
 SESSION_COOKIE_DOMAIN = os.environ.get("SESSION_COOKIE_DOMAIN", f"{BASE_DOMAIN}")
@@ -236,7 +236,7 @@ UNIQ_NODE_ID = f"webvirtcloud-{uuid.getnode():x}".ljust(32, "0").encode()
 ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", base64.urlsafe_b64encode(UNIQ_NODE_ID).decode())
 
 # Public images URL storage (Distributions, Applicatons)
-PUBLIC_IMAGES_URL = os.environ.get("PUBLIC_IMAGES_URL", "https://cloud-images.webvirt.cloud/")
+PUBLIC_IMAGES_URL = os.environ.get("PUBLIC_IMAGES_URL", "https://cdn.spiritlhl.net/github.com/oneclickvirt/webvirtcloud/releases/download/webvirtcloud_images/")
 
 # Compute settings
 COMPUTE_PORT = os.environ.get("COMPUTE_PORT", 8884)

@@ -9,21 +9,21 @@ import { ThemeProvider } from './providers';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://webvirt.cloud'),
+  metadataBase: new URL('https://spiritlhl.net'),
   title: 'WebVirtCloud - Free, open source cloud platform',
   description:
     'Meet a modern and powerful all-in-one cloud management platform for your company & your clients',
   robots: 'index, follow',
   openGraph: {
     type: 'website',
-    url: 'https://webvirt.cloud',
+    url: 'https://spiritlhl.net',
     title: 'WebVirtCloud',
     description:
       'Meet a modern and powerful all-in-one cloud management platform for your company & your clients',
     siteName: 'WebVirtCloud',
     images: [
       {
-        url: 'https://webvirt.cloud/opengraph-image.png',
+        url: 'https://spiritlhl.net/opengraph-image.png',
       },
     ],
   },

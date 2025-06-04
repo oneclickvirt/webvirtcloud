@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 import { compareDesc } from 'date-fns';
 import { allPosts } from '@/.contentlayer/generated';
 
-export const baseUrl = 'https://webvirt.cloud';
+export const baseUrl = 'https://spiritlhl.net';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const posts = allPosts
