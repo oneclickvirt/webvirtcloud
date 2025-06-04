@@ -15,12 +15,12 @@ WebVirtBackend is an open-source Django-based backend for managing virtual machi
 
 1. Clone the repository
 ```bash
-git clone https://github.com/webvirtcloud/webvirtbackend.git
+git clone https://github.com/oneclickvirt/webvirtcloud.git
 ```
 
 2. Change into the cloned directory:
 ```bash
-cd webvirtbackend
+cd webvirtcloud/webvirtbackend/
 ```
 
 3. Build the Docker image:
