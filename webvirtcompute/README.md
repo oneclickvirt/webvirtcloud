@@ -110,7 +110,7 @@ For bridge interface `br-int` we don't need to set IP addresses.
 This script will install and configure `libvirt` with `qemu:///system` URI. You can always change settings `libvirt` and `libguestfish` if that is needed. Only create and set up `br-ext` and `br-int` bridges before running this script.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/libvirt.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/oneclickvirt/webvirtcloud/webvirtcompute/master/scripts/libvirt.sh | sudo bash
 ```
 
 ### Prometheus setup ###
@@ -118,7 +118,7 @@ curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/
 This script will install and configure `prometheus` with `node_exporter` and `libvirt_exporter`. You can always change settings for `prometheus` if that is needed. 
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/prometheus.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/oneclickvirt/webvirtcloud/webvirtcompute/master/scripts/prometheus.sh | sudo bash
 ```
 
 ### Firewall setup ###
@@ -146,13 +146,13 @@ firewall-cmd --reload
 ### Install WebVirtCompute daemon ###
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/oneclickvirt/webvirtcloud/webvirtcompute/master/scripts/install.sh | sudo bash
 ```
 
 ### Update WebVirtCompute daemon ###
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/update.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/oneclickvirt/webvirtcloud/webvirtcompute/master/scripts/update.sh | sudo bash
 ```
 
 ### Configuring daemon (optional) ###
