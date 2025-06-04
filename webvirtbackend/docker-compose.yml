@@ -1,0 +1,129 @@
+services:
+  
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: webvirtbackend:dev
+    container_name: webvirtcloud-dev-backend
+    hostname: backend
+    volumes:
+      - .:/app
+    command: python3 manage.py runserver 0:8000
+    environment:
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      DB_NAME: webvirtcloud
+      DB_USER: django
+      DB_PASSWORD: django
+      PYTHONOPTIMIZE: 1
+      ANSIBLE_HOST_KEY_CHECKING: 0
+      ANSIBLE_PARAMIKO_LOOK_FOR_KEYS: 0
+      DJANGO_SETTINGS_MODULE: webvirtcloud.settings.develop
+      CELERY_BROKER_URL: "amqp://guest:guest@rabbitmq:5672"
+    depends_on:
+      - mariadb
+    ports:
+      - 8000:8000  
+  
+  novnc:
+    image: webvirtbackend:dev
+    container_name: webvirtcloud-dev-novnc
+    hostname: novnc
+    volumes:
+      - .:/app
+    command: python3 manage.py novncd --verbose
+    environment:
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      DB_NAME: webvirtcloud
+      DB_USER: django
+      DB_PASSWORD: django
+      DJANGO_SETTINGS_MODULE: webvirtcloud.settings.develop
+    depends_on:
+      - mariadb
+    ports:
+      - 127.0.0.1:6080:6080
+  
+  worker:
+    image: webvirtbackend:dev
+    container_name: webvirtcloud-dev-worker
+    hostname: worker
+    volumes:
+      - .:/app
+    command: celery -A webvirtcloud worker -l info
+    environment:
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      DB_NAME: webvirtcloud
+      DB_USER: django
+      DB_PASSWORD: django
+      PYTHONOPTIMIZE: 1
+      ANSIBLE_HOST_KEY_CHECKING: 0
+      ANSIBLE_PARAMIKO_LOOK_FOR_KEYS: 0
+      DJANGO_SETTINGS_MODULE: webvirtcloud.settings.develop
+      CELERY_BROKER_URL: "amqp://guest:guest@rabbitmq:5672"
+    depends_on:
+      - mariadb
+      - rabbitmq
+  
+  scheduler:
+    image: webvirtbackend:dev
+    container_name: webvirtcloud-dev-scheduler
+    hostname: scheduler
+    volumes:
+      - .:/app
+    command: celery -A webvirtcloud beat -l info
+    environment:
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      DB_NAME: webvirtcloud
+      DB_USER: django
+      DB_PASSWORD: django
+      ANSIBLE_HOST_KEY_CHECKING: 0
+      ANSIBLE_PARAMIKO_LOOK_FOR_KEYS: 0
+      DJANGO_SETTINGS_MODULE: webvirtcloud.settings.develop
+      CELERY_BROKER_URL: "amqp://guest:guest@rabbitmq:5672"
+    depends_on:
+      - worker
+      - mariadb
+      - rabbitmq
+  
+  mariadb:
+    image: mariadb:10.6.10
+    container_name: webvirtcloud-dev-mariadb
+    hostname: mariadb
+    volumes:
+      - ./.mysql:/var/lib/mysql
+    environment:
+      MARIADB_DATABASE: webvirtcloud
+      MARIADB_USER: django
+      MARIADB_PASSWORD: django
+      MARIADB_ROOT_PASSWORD: root
+    ports:
+      - 127.0.0.1:3306:3306
+  
+  rabbitmq:
+    image: rabbitmq:3.10.13
+    container_name: webvirtcloud-dev-rabbitmq
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - 127.0.0.1:5672:5672
+  
+  cloudinit-proxy:
+    image: haproxy:lts
+    container_name: webvirtcloud-dev-cloudinit-proxy
+    hostname: cloudinit-proxy
+    volumes:
+      - ./config/dev/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+    network_mode: host
+  
+  mailpit:
+    image: axllent/mailpit
+    container_name: webvirtcloud-dev-mailpit
+    hostname: mailpit
+    ports:
+      - 127.0.0.1:8025:8025

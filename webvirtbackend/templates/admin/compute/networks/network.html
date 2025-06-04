@@ -1,0 +1,120 @@
+{% extends "admin/compute/base.html" %} 
+{% load static %}
+{% load crispy_forms_tags %}
+{% block computecontent %}
+<main>
+  <a
+    href="{% url 'admin_compute_networks' compute.id %}"
+    class="inline-flex items-center text-sm p-2 bg-muted rounded-md space-x-2 mb-4"
+    ><svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke-width="1.5"
+      stroke="currentColor"
+      class="w-5 h-5"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"
+      />
+    </svg>
+    <span>Back to the list</span>
+  </a>
+  <div class="overflow-hidden bg-card sm:rounded-lg sm:shadow mb-8">
+    <div class="border-b  bg-card px-4 py-5 sm:px-6">
+      <h3 class="text-base font-semibold leading-6">Network</h3>
+    </div>
+    <div class="grid md:grid-cols-3">
+      <div class="px-4 py-4 sm:px-6">
+        <div class="flex items-center text-sm text-muted-foreground mb-1">
+          <span class="font-medium">
+            Name
+          </span>
+        </div>
+        <div class="truncate text-sm font-medium">{{ network_pool.name }}</div>
+      </div>
+      <div class="px-4 py-4 sm:px-6">
+        <div class="flex items-center text-sm text-muted-foreground mb-1">
+          <span class="font-medium">
+            Active
+          </span>
+        </div>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="{% if network_pool.active is True %}stop{% else %}start{% endif %}" />
+            {% if network_pool.active is True %}
+              <input class="text-red-600 hover:text-red-900" type="submit" value="Stop" />
+            {% else %}
+              <input class="text-green-600 hover:text-green-900" type="submit" value="Start" />
+            {% endif %}
+          </button>
+        </form>
+      </div>
+      <div class="px-4 py-4 sm:px-6">
+        <div class="flex items-center text-sm text-muted-foreground mb-1">
+          <span class="font-medium">
+            Device
+          </span>
+        </div>
+        <div class="truncate text-sm font-medium">{{ network_pool.device }}</div>
+      </div>
+      <div class="px-4 py-4 sm:px-6">
+        <div class="flex items-center text-sm text-muted-foreground mb-1">
+          <span class="font-medium">
+            Forward
+          </span>
+        </div>
+        <div class="truncate text-sm font-medium">{{ network_pool.forward|upper }}</div>
+      </div>
+      <div class="px-4 py-4 sm:px-6">
+        <div class="flex items-center text-sm text-muted-foreground mb-1">
+          <span class="font-medium">
+            Autostart
+          </span>
+        </div>
+        <form method="post">
+          {% csrf_token %}
+          {% if network_pool.autostart is True %}
+            <input type="hidden" name="action" value="manualstart" />
+          {% else %}
+            <input type="hidden" name="action" value="autostart" />
+          {% endif %}
+          <label 
+            class="flex items-center space-x-2" 
+          >
+            <input 
+              type="checkbox" 
+              onchange="this.form.submit()"
+              {% if network_pool.autostart is True %}
+                checked
+              {% endif %}
+              "
+            />
+            <span class="font-medium
+            ">On Boot</span>
+          </label>
+        </form>
+      </div>
+      <div class="px-4 py-4 sm:px-6">
+        {% if network_pool.active is True %}
+        <div class="flex items-center text-sm text-muted-foreground mb-1">
+          <span class="font-medium">
+            Open vSwitch
+          </span>
+        </div>
+        <div class="truncate text-sm font-medium">{{ network_pool.openvswitch }}</div>
+        {% else %}
+          <a
+            href="{% url 'admin_compute_network_delete' compute.id network_pool.name %}"
+            class="text-red-600 hover:text-red-900"
+            onclick="return confirm('Are you sure you would like to deelete this pool?');"
+            >Delete</a
+          >
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</main>
+{% endblock %}
