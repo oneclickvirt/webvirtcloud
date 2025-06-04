@@ -49,7 +49,7 @@ elif [[ $DISTRO_NAME == "debian" ]] || [[ $DISTRO_NAME == "ubuntu" ]]; then
 fi
 
 # Download and install libvirt exporter
-wget -O /tmp/prometheus-libvirt-exporter.tar.gz https://cloud-apps.webvirt.cloud/prometheus-libvirt-exporter-$DISTRO_NAME$DISTRO_VERSION-amd64.tar.gz
+wget -O /tmp/prometheus-libvirt-exporter.tar.gz https://github.com/oneclickvirt/webvirtcloud/releases/download/webvirtcloud_dep/prometheus-libvirt-exporter-$DISTRO_NAME$DISTRO_VERSION-amd64.tar.gz
 tar -xvf /tmp/prometheus-libvirt-exporter.tar.gz -C /tmp
 cp /tmp/prometheus-libvirt-exporter/prometheus-libvirt-exporter /usr/local/bin/
 chmod +x /usr/local/bin/prometheus-libvirt-exporter

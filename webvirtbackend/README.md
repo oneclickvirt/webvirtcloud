@@ -74,7 +74,7 @@ The Swagger API documentation is available at `http://localhost:8000/swagger/`.
 
 The API endpoints are available at `http://localhost:8000/api/`. You can use them to create, delete, and manage virtual machines. You can log in with the following credentials:
 
-* Username: `user@webvirt.cloud`
+* Username: `user@spiritlhl.net`
 * Password: `1qaz2wsx`
 * Token: `fcc69bfad35527d087bf22a8a84a4f6c3b75387877c78ae3050e9e8036ef`
 

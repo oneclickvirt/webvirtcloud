@@ -172,11 +172,11 @@ You can find the archive with binary in `release` directory.
 
 You can download already built binary for:
 
-* [RHEL 8 family](https://cloud-apps.webvirt.cloud/webvirtcompute-rhel8-amd64.tar.gz) 
-* [RHEL 9 family](https://cloud-apps.webvirt.cloud/webvirtcompute-rhel9-amd64.tar.gz) 
-* [Debian 12](https://cloud-apps.webvirt.cloud/webvirtcompute-debian12-amd64.tar.gz)
-* [Ubuntu 22.04](https://cloud-apps.webvirt.cloud/webvirtcompute-ubuntu2204-amd64.tar.gz)
-* [Ubuntu 24.04](https://cloud-apps.webvirt.cloud/webvirtcompute-ubuntu2404-amd64.tar.gz)
+* [RHEL 8 family](https://github.com/oneclickvirt/webvirtcloud/releases/download/webvirtcloud_dep/webvirtcompute-rhel8-amd64.tar.gz) 
+* [RHEL 9 family](https://github.com/oneclickvirt/webvirtcloud/releases/download/webvirtcloud_dep/webvirtcompute-rhel9-amd64.tar.gz) 
+* [Debian 12](https://github.com/oneclickvirt/webvirtcloud/releases/download/webvirtcloud_dep/webvirtcompute-debian12-amd64.tar.gz)
+* [Ubuntu 22.04](https://github.com/oneclickvirt/webvirtcloud/releases/download/webvirtcloud_dep/webvirtcompute-ubuntu2204-amd64.tar.gz)
+* [Ubuntu 24.04](https://github.com/oneclickvirt/webvirtcloud/releases/download/webvirtcloud_dep/webvirtcompute-ubuntu2404-amd64.tar.gz)
 
 ## License ##
 

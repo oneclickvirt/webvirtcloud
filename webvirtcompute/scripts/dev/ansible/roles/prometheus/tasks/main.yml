@@ -7,7 +7,7 @@
 
 - name: download libvirt exporter
   unarchive:
-    src: https://cloud-apps.webvirt.cloud/prometheus-libvirt-exporter-rhel8-amd64.tar.gz
+    src: https://github.com/oneclickvirt/webvirtcloud/releases/download/webvirtcloud_dep/prometheus-libvirt-exporter-rhel8-amd64.tar.gz
     dest: /tmp
     remote_src: yes
 
