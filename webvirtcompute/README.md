@@ -1,3 +1,5 @@
+# The original project has been deleted. This is only a personal archive.
+
 # WebVirtCompute #
 
 WebVirtCompute is a daemon for deploying and managing virtual machines based on FastAPI and libvirt. It is designed to be used for compute nodes and backend. This project provides a REST API to manage virtual machines and their resources, making it easy to automate virtual machine management.

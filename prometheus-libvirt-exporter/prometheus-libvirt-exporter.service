@@ -1,0 +1,11 @@
+[Unit]
+Description=Prometheus Libvirt Exporter
+Documentation=https://github.com/retspen/libvirt-exporter
+After=network-online.target
+
+[Service]
+Restart=always
+ExecStart=/usr/local/bin/prometheus-libvirt-exporter
+
+[Install]
+WantedBy=multi-user.target
