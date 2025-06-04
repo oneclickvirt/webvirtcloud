@@ -28,6 +28,13 @@ cd webvirtcloud/webvirtbackend/
 docker compose build
 ```
 
+Push to hub
+
+```bash
+docker tag webvirtbackend:dev spiritlhl/webvirtbackend:dev
+docker push spiritlhl/webvirtbackend:dev
+```
+
 4. Run the Docker container:
 ```bash
 docker compose up -d
