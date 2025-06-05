@@ -153,9 +153,34 @@ cat <<EOF | virsh nwfilter-define /dev/stdin
 EOF
 echo -e "Configuring libvirt... - Done!\n"
 
+check_cdn() {
+    local o_url=$1
+    local shuffled_cdn_urls=($(shuf -e "${cdn_urls[@]}")) # 打乱数组顺序
+    for cdn_url in "${shuffled_cdn_urls[@]}"; do
+        if curl -sL -k "$cdn_url$o_url" --max-time 6 | grep -q "success" >/dev/null 2>&1; then
+            export cdn_success_url="$cdn_url"
+            return
+        fi
+        sleep 0.5
+    done
+    export cdn_success_url=""
+}
+
+check_cdn_file() {
+    check_cdn "https://raw.githubusercontent.com/spiritLHLS/ecs/main/back/test"
+    if [ -n "$cdn_success_url" ]; then
+        echo "CDN available, using CDN"
+    else
+        echo "No CDN available, no use CDN"
+    fi
+}
+
 # Download recovery image
 echo -e "\nDownloading recovery image..."
-wget -O /var/lib/libvirt/isos/finnix-125.iso https://www.finnix.org/releases/125/finnix-125.iso
+cdn_urls=("https://cdn0.spiritlhl.top/" "http://cdn1.spiritlhl.net/" "http://cdn2.spiritlhl.net/" "http://cdn3.spiritlhl.net/" "http://cdn4.spiritlhl.net/")
+check_cdn_file
+# https://www.finnix.org/releases/125/finnix-125.iso
+wget -O /var/lib/libvirt/isos/finnix-125.iso ${cdn_success_url}https://github.com/oneclickvirt/webvirtcloud/releases/download/webvirtcloud_dep/finnix-125.iso
 echo -e "Downloading recovery image... - Done!\n"
 
 # Enable firewall
