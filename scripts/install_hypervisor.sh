@@ -1,7 +1,7 @@
 #!/bin/bash
 # https://github.com/oneclickvirt/webvirtcloud
 # For https://github.com/webvirtcloud/webvirtcloud
-# 2025.04.22
+# 2025.06.05
 
 ###########################################
 # Initialization and Environment Variables Setup
@@ -55,13 +55,6 @@ init_system_vars() {
             [[ -n $SYSTEM ]] && break
         fi
     done
-}
-
-statistics_of_run_times() {
-    COUNT=$(curl -4 -ksm1 "https://hits.spiritlhl.net/webvirtcloud?action=hit&title=Hits&title_bg=%23555555&count_bg=%2324dde1&edge_flat=false" 2>/dev/null ||
-        curl -6 -ksm1 "https://hits.spiritlhl.net/webvirtcloud?action=hit&title=Hits&title_bg=%23555555&count_bg=%2324dde1&edge_flat=false" 2>/dev/null)
-    TODAY=$(echo "$COUNT" | grep -oP '"daily":\s*[0-9]+' | sed 's/"daily":\s*\([0-9]*\)/\1/')
-    TOTAL=$(echo "$COUNT" | grep -oP '"total":\s*[0-9]+' | sed 's/"total":\s*\([0-9]*\)/\1/')
 }
 
 ###########################################
@@ -438,9 +431,6 @@ main() {
     install_basic_dependencies
     cdn_urls=("https://cdn0.spiritlhl.top/" "http://cdn1.spiritlhl.net/" "http://cdn2.spiritlhl.net/" "http://cdn3.spiritlhl.net/" "http://cdn4.spiritlhl.net/")
     check_cdn_file
-    statistics_of_run_times
-    _green "Script run count today: ${TODAY}, total run count: ${TOTAL}"
-    _green "脚本当天运行次数:${TODAY}，累计运行次数:${TOTAL}"
     check_ipv4
     if [[ "${RELEASE[int]}" == "Ubuntu" ]]; then
         install_with_ubuntu
