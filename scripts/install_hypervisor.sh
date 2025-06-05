@@ -382,16 +382,16 @@ firewall_setup() {
 }
 
 libvirt_setup() {
-    curl -fsSL "${cdn_success_url}https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/libvirt.sh" | sudo bash
+    curl -fsSL "${cdn_success_url}https://raw.githubusercontent.com/oneclickvirt/webvirtcloud/webvirtcompute/master/scripts/libvirt.sh" | sudo bash
 }
 
 prometheus_setup() {
-    curl -fsSL "${cdn_success_url}https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/prometheus.sh" | sudo bash
+    curl -fsSL "${cdn_success_url}https://raw.githubusercontent.com/oneclickvirt/webvirtcloud/webvirtcompute/master/scripts/prometheus.sh" | sudo bash
 }
 
 computer_setup() {
-    curl -fsSL "${cdn_success_url}https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/install.sh" | sudo bash
-    curl -fsSL "${cdn_success_url}https://raw.githubusercontent.com/webvirtcloud/webvirtcompute/master/scripts/update.sh" | sudo bash
+    curl -fsSL "${cdn_success_url}https://raw.githubusercontent.com/oneclickvirt/webvirtcloud/webvirtcompute/master/scripts/install.sh" | sudo bash
+    curl -fsSL "${cdn_success_url}https://raw.githubusercontent.com/oneclickvirt/webvirtcloud/webvirtcompute/master/scripts/update.sh" | sudo bash
 }
 
 extract_webvirtcloud_token() {
