@@ -1,7 +1,7 @@
 #!/bin/bash
 # https://github.com/oneclickvirt/webvirtcloud
 # For https://github.com/oneclickvirt/webvirtcloud_retspen from https://github.com/retspen/webvirtcloud
-# 2025.06.03
+# 2025.07.02
 
 set -e
 export DEBIAN_FRONTEND=noninteractive
@@ -389,6 +389,7 @@ clone_webvirtcloud() {
     _green "✓ 仓库克隆成功"
     _yellow "Configuring WebVirtCloud..."
     _yellow "配置WebVirtCloud..."
+    mv webvirtcloud_retspen webvirtcloud
     cd webvirtcloud
     cp webvirtcloud/settings.py.template webvirtcloud/settings.py
     sed -i "s/SECRET_KEY = \"\"/SECRET_KEY = \"${secret_key}\"/g" webvirtcloud/settings.py
