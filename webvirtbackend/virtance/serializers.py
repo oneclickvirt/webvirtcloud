@@ -13,6 +13,7 @@ from region.serializers import RegionSerializer
 from compute.webvirt import WebVirtCompute
 from .models import Virtance
 from .utils import virtance_error
+from .port_mapping import get_vm_port_mapping, get_public_ip, update_virtance_port_mapping
 from .tasks import create_virtance, action_virtance, resize_virtance, reset_password_virtance, rebuild_virtance
 from .tasks import enable_recovery_mode_virtance, disable_recovery_mode_virtance
 from .tasks import backups_delete, snapshot_virtance, restore_virtance
@@ -35,6 +36,7 @@ class VirtanceSerializer(serializers.ModelSerializer):
     networks = serializers.SerializerMethodField()
     backup_ids = serializers.SerializerMethodField()
     snapshot_ids = serializers.SerializerMethodField()
+    port_mapping = serializers.SerializerMethodField()
 
     class Meta:
         model = Virtance
@@ -57,6 +59,7 @@ class VirtanceSerializer(serializers.ModelSerializer):
             "snapshot_ids",
             "recovery_mode",
             "backups_enabled",
+            "port_mapping",
         )
 
     def get_status(self, obj):
@@ -116,6 +119,37 @@ class VirtanceSerializer(serializers.ModelSerializer):
                 }
             )
         return {"v4": v4, "v6": v6}
+
+    def get_port_mapping(self, obj):
+        """获取虚拟机端口映射信息"""
+        # 尝试从数据库获取
+        if obj.public_ip and obj.ssh_port:
+            return {
+                "public_ip": obj.public_ip,
+                "ssh_port": obj.ssh_port,
+                "port_range": f"{obj.port_range_start}-{obj.port_range_end}" if obj.port_range_start and obj.port_range_end else None,
+                "ssh_command": f"ssh -p {obj.ssh_port} root@{obj.public_ip}" if obj.public_ip and obj.ssh_port else None
+            }
+        
+        # 从映射文件实时获取
+        mapping_info = get_vm_port_mapping(obj.name)
+        public_ip = get_public_ip()
+        
+        if mapping_info and public_ip:
+            # 更新数据库中的信息
+            try:
+                update_virtance_port_mapping(obj)
+            except:
+                pass  # 忽略更新错误
+            
+            return {
+                "public_ip": public_ip,
+                "ssh_port": mapping_info['ssh_port'],
+                "port_range": f"{mapping_info['port_start']}-{mapping_info['port_end']}",
+                "ssh_command": f"ssh -p {mapping_info['ssh_port']} root@{public_ip}"
+            }
+        
+        return None
 
 
 class CreateVirtanceSerializer(serializers.Serializer):

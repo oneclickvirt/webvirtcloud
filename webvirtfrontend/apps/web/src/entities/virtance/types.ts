@@ -69,6 +69,12 @@ export type Virtance = {
     features: [];
     sizes: string[];
   };
+  port_mapping?: {
+    public_ip: string;
+    ssh_port: number;
+    port_range: string;
+    ssh_command: string;
+  } | null;
 };
 
 export type VirtanceStatus = 'active' | 'pending' | 'inactive';

@@ -4,6 +4,8 @@ import {
   LucideChevronsLeftRightEllipsis,
   LucideClipboardCopy,
   LucideMapPinHouse,
+  LucideTerminal,
+  LucideNetwork,
 } from 'lucide-react';
 import { type ReactNode, MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
@@ -71,23 +73,39 @@ export function VirtanceCard({ virtance, to, actions }: Props) {
         <div className="relative z-[2] flex items-center space-x-1">{actions}</div>
       </div>
 
-      <div className="flex items-center space-x-3 text-sm">
-        <div className="flex items-center space-x-1">
-          <LucideMapPinHouse className="text-muted-foreground h-4 w-4" />
-          <span className="">{virtance.region.name}</span>
+      <div className="space-y-2">
+        <div className="flex items-center space-x-3 text-sm">
+          <div className="flex items-center space-x-1">
+            <LucideMapPinHouse className="text-muted-foreground h-4 w-4" />
+            <span className="">{virtance.region.name}</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <LucideChevronsLeftRightEllipsis className="text-muted-foreground h-4 w-4" />
+            <span className="">{getIpAddress()}</span>
+            <Button
+              onClick={copyIpAddress}
+              variant="ghost"
+              className="relative z-[2] h-6 w-6"
+              size="icon"
+            >
+              <LucideClipboardCopy className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center space-x-1">
-          <LucideChevronsLeftRightEllipsis className="text-muted-foreground h-4 w-4" />
-          <span className="">{getIpAddress()}</span>
-          <Button
-            onClick={copyIpAddress}
-            variant="ghost"
-            className="relative z-[2] h-6 w-6"
-            size="icon"
-          >
-            <LucideClipboardCopy className="h-3.5 w-3.5" />
-          </Button>
-        </div>
+        
+        {/* 端口映射信息 */}
+        {virtance.port_mapping && (
+          <div className="flex items-center space-x-3 text-sm">
+            <div className="flex items-center space-x-1">
+              <LucideTerminal className="text-muted-foreground h-4 w-4" />
+              <span className="text-xs">SSH: {virtance.port_mapping.public_ip}:{virtance.port_mapping.ssh_port}</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <LucideNetwork className="text-muted-foreground h-4 w-4" />
+              <span className="text-xs">端口: {virtance.port_mapping.port_range}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between">
