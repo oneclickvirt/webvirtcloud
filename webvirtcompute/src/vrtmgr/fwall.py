@@ -27,58 +27,67 @@ class FirewallMgr(object):
         if self.is_locked():
             return f"Firewall closed connection by timeout {FIREWALLD_STATE_TIMEOUT}sec."
         self.set_state()
-        self.create_firewall()
-        self.create_rule("inbound", rules_inbound)
-        self.create_rule("outbound", rules_outbound)
-        self.save()
+        try:
+            self.create_firewall()
+            self.create_rule("inbound", rules_inbound)
+            self.create_rule("outbound", rules_outbound)
+            self.save()
+        finally:
+            self.unset_state()
         return None
 
     def detach(self):
         if self.is_locked():
             return f"Firewall closed connection by timeout {FIREWALLD_STATE_TIMEOUT}sec."
         self.set_state()
-        self.delete_firewall()
-        self.save()
+        try:
+            self.delete_firewall()
+            self.save()
+        finally:
+            self.unset_state()
         return None
 
     def attach_rule(self, rules_inbound, rules_outbound):
         if self.is_locked():
             return f"Firewall closed connection by timeout {FIREWALLD_STATE_TIMEOUT}sec."
         self.set_state()
-        if rules_inbound:
-            self.create_rule("inbound", rules_inbound)
-        if rules_outbound:
-            self.create_rule("outbound", rules_outbound)
-        self.save()
+        try:
+            if rules_inbound:
+                self.create_rule("inbound", rules_inbound)
+            if rules_outbound:
+                self.create_rule("outbound", rules_outbound)
+            self.save()
+        finally:
+            self.unset_state()
         return None
 
     def detach_rule(self, rules_inbound, rules_outbound):
         if self.is_locked():
             return f"Firewall closed connection by timeout {FIREWALLD_STATE_TIMEOUT}sec."
         self.set_state()
-        if rules_inbound:
-            self.delete_rule("inbound", rules_inbound)
-        if rules_outbound:
-            self.delete_rule("outbound", rules_outbound)
-        self.save()
+        try:
+            if rules_inbound:
+                self.delete_rule("inbound", rules_inbound)
+            if rules_outbound:
+                self.delete_rule("outbound", rules_outbound)
+            self.save()
+        finally:
+            self.unset_state()
         return None
 
     def set_state(self):
-        f = open(FIREWALLD_STATE_FILE, "w")
-        f.write("1")
-        f.close()
+        with open(FIREWALLD_STATE_FILE, "w") as f:
+            f.write("1")
 
     def unset_state(self):
-        f = open(FIREWALLD_STATE_FILE, "w")
-        f.write("0")
-        f.close()
+        with open(FIREWALLD_STATE_FILE, "w") as f:
+            f.write("0")
 
     def read_state(self):
         state = False
         if os.path.isfile(FIREWALLD_STATE_FILE):
-            f = open(FIREWALLD_STATE_FILE, "r")
-            f_data = f.read()
-            f.close()
+            with open(FIREWALLD_STATE_FILE, "r") as f:
+                f_data = f.read().strip()
             if f_data:
                 state = f_data == "1"
         return state

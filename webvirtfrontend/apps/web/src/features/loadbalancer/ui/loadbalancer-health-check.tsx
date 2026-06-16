@@ -11,7 +11,7 @@ export function LoadbalancerHealthCheck() {
     setValue,
     formState: { errors },
   } = useFormContext<{
-    healthcheck: {
+    health_check: {
       protocol: 'tcp' | 'http' | 'https';
       port: number;
       path?: string;
@@ -22,16 +22,16 @@ export function LoadbalancerHealthCheck() {
     };
   }>();
 
-  const protocol = watch('healthcheck.protocol');
+  const protocol = watch('health_check.protocol');
 
   useEffect(() => {
     if (protocol === 'tcp') {
-      unregister('healthcheck.path');
+      unregister('health_check.path');
     } else {
-      register('healthcheck.path');
-      setValue('healthcheck.path', '/');
+      register('health_check.path');
+      setValue('health_check.path', '/');
     }
-  }, [protocol, register, unregister]);
+  }, [protocol, register, setValue, unregister]);
 
   return (
     <div>
@@ -47,7 +47,7 @@ export function LoadbalancerHealthCheck() {
           <Label htmlFor="health-check-protocol">Protocol</Label>
           <select
             id="health-check-protocol"
-            {...register('healthcheck.protocol')}
+            {...register('health_check.protocol')}
             className="border-border h-10 w-full rounded-md border bg-transparent shadow-sm"
           >
             <option disabled>Protocol</option>
@@ -60,12 +60,12 @@ export function LoadbalancerHealthCheck() {
           <Label htmlFor="health-check-port">Port</Label>
           <Input
             id="health-check-port"
-            {...register('healthcheck.port')}
+            {...register('health_check.port')}
             className="border-border h-10 w-full rounded-md border bg-transparent shadow-sm"
           />
-          {errors?.healthcheck?.port && (
+          {errors?.health_check?.port && (
             <p className="text-sm font-medium text-red-500">
-              {errors?.healthcheck?.port?.message}
+              {errors?.health_check?.port?.message}
             </p>
           )}
         </div>
@@ -74,12 +74,12 @@ export function LoadbalancerHealthCheck() {
             <Label htmlFor="health-check-path">Path</Label>
             <Input
               id="health-check-path"
-              {...register('healthcheck.path')}
+              {...register('health_check.path')}
               className="border-border h-10 w-full rounded-md border bg-transparent shadow-sm"
             />
-            {errors?.healthcheck?.path && (
+            {errors?.health_check?.path && (
               <p className="text-sm font-medium text-red-500">
-                {errors?.healthcheck?.path?.message}
+                {errors?.health_check?.path?.message}
               </p>
             )}
           </div>
@@ -90,12 +90,12 @@ export function LoadbalancerHealthCheck() {
           <Label htmlFor="healthcheck-interval">Check interval (in s)</Label>
           <Input
             id="healthcheck-interval"
-            {...register('healthcheck.check_interval_seconds')}
+            {...register('health_check.check_interval_seconds')}
             className="border-border h-10 w-full rounded-md border bg-transparent shadow-sm"
           />
-          {errors?.healthcheck?.path && (
+          {errors?.health_check?.check_interval_seconds && (
             <p className="text-sm font-medium text-red-500">
-              {errors?.healthcheck?.path?.message}
+              {errors?.health_check?.check_interval_seconds?.message}
             </p>
           )}
         </div>
@@ -103,12 +103,12 @@ export function LoadbalancerHealthCheck() {
           <Label htmlFor="healthcheck-timeout">Response timeout (in s)</Label>
           <Input
             id="healthcheck-timeout"
-            {...register('healthcheck.response_timeout_seconds')}
+            {...register('health_check.response_timeout_seconds')}
             className="border-border h-10 w-full rounded-md border bg-transparent shadow-sm"
           />
-          {errors?.healthcheck?.response_timeout_seconds && (
+          {errors?.health_check?.response_timeout_seconds && (
             <p className="text-sm font-medium text-red-500">
-              {errors?.healthcheck?.response_timeout_seconds?.message}
+              {errors?.health_check?.response_timeout_seconds?.message}
             </p>
           )}
         </div>
@@ -116,25 +116,25 @@ export function LoadbalancerHealthCheck() {
           <Label htmlFor="healthcheck-unhealthy">Unhealthy threshold</Label>
           <Input
             id="healthcheck-unhealthy"
-            {...register('healthcheck.unhealthy_threshold')}
+            {...register('health_check.unhealthy_threshold')}
             className="border-border h-10 w-full rounded-md border bg-transparent shadow-sm"
           />
-          {errors?.healthcheck?.unhealthy_threshold && (
+          {errors?.health_check?.unhealthy_threshold && (
             <p className="text-sm font-medium text-red-500">
-              {errors?.healthcheck?.unhealthy_threshold?.message}
+              {errors?.health_check?.unhealthy_threshold?.message}
             </p>
           )}
         </div>
         <div className="space-y-1">
-          <Label htmlFor="healthcheck-unhealthy">Healthy threshold</Label>
+          <Label htmlFor="healthcheck-healthy">Healthy threshold</Label>
           <Input
             id="healthcheck-healthy"
-            {...register('healthcheck.healthy_threshold')}
+            {...register('health_check.healthy_threshold')}
             className="border-border h-10 w-full rounded-md border bg-transparent shadow-sm"
           />
-          {errors?.healthcheck?.healthy_threshold && (
+          {errors?.health_check?.healthy_threshold && (
             <p className="text-sm font-medium text-red-500">
-              {errors?.healthcheck?.healthy_threshold?.message}
+              {errors?.health_check?.healthy_threshold?.message}
             </p>
           )}
         </div>

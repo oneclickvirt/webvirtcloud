@@ -12,6 +12,7 @@ export DEBIAN_FRONTEND=noninteractive
 cd /root >/dev/null 2>&1
 
 WEBVIRTBACKED_IP="$1"
+MIN_LIBVIRT_VERSION="7.0.0"
 
 # Set up UTF-8 locale
 # 设置UTF-8语言环境
@@ -19,11 +20,13 @@ setup_locale() {
     utf8_locale=$(locale -a 2>/dev/null | grep -i -m 1 -E "UTF-8|utf8")
     if [[ -z "$utf8_locale" ]]; then
         echo "No UTF-8 locale found"
+        echo "未找到 UTF-8 语言环境"
     else
         export LC_ALL="$utf8_locale"
         export LANG="$utf8_locale"
         export LANGUAGE="$utf8_locale"
         echo "Locale set to $utf8_locale"
+        echo "语言环境设置为 $utf8_locale"
     fi
 }
 
@@ -32,6 +35,7 @@ setup_locale() {
 check_root() {
     if [ "$(id -u)" != "0" ]; then
         _red "This script must be run as root" 1>&2
+        _red "此脚本必须以 root 用户运行" 1>&2
         exit 1
     fi
 }
@@ -112,7 +116,7 @@ check_update() {
         if [[ "$is_archive" == true ]]; then
             _yellow "Detected archive system: $distro $codename, please upgrade your system. Exiting program."
             _yellow "检测到归档系统：$distro $codename，请升级系统，正在退出程序"
-            1
+            exit 1
         fi
         # Update package list
         # 更新包列表
@@ -220,8 +224,37 @@ check_system_compatibility() {
     if [[ "${RELEASE[int]}" != "Debian" && "${RELEASE[int]}" != "Ubuntu" && "${RELEASE[int]}" != "CentOS" ]]; then
         _red "Current system not supported: ${RELEASE[int]}"
         _red "不支持当前系统: ${RELEASE[int]}"
-        1
+        exit 1
     fi
+}
+
+version_ge() {
+    [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]
+}
+
+check_libvirt_qemu_versions() {
+    if ! command -v virsh >/dev/null 2>&1; then
+        _red "virsh not found after libvirt installation."
+        _red "安装 libvirt 后仍未找到 virsh。"
+        exit 1
+    fi
+
+    local libvirt_version
+    libvirt_version="$(virsh --version 2>/dev/null | head -n1)"
+    if ! version_ge "$libvirt_version" "$MIN_LIBVIRT_VERSION"; then
+        _red "libvirt ${libvirt_version} is lower than the supported minimum ${MIN_LIBVIRT_VERSION}."
+        _red "libvirt ${libvirt_version} 低于最低支持版本 ${MIN_LIBVIRT_VERSION}。"
+        exit 1
+    fi
+
+    if ! command -v qemu-system-x86_64 >/dev/null 2>&1 && ! command -v qemu-kvm >/dev/null 2>&1; then
+        _red "QEMU/KVM executable not found after installation."
+        _red "安装后未找到 QEMU/KVM 可执行文件。"
+        exit 1
+    fi
+
+    _green "libvirt ${libvirt_version} and QEMU/KVM compatibility check passed."
+    _green "libvirt ${libvirt_version} 与 QEMU/KVM 兼容性检查通过。"
 }
 
 ###########################################
@@ -439,6 +472,7 @@ main() {
     fi
     rebuild_network
     libvirt_setup
+    check_libvirt_qemu_versions
     prometheus_setup
     firewall_setup
     computer_setup

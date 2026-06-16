@@ -245,9 +245,9 @@ install_webvirtmgr() {
     python manage.py syncdb --noinput
     _blue "创建管理员用户"
     _blue "Creating admin user"
-    ADMIN_USERNAME="admin"
-    ADMIN_EMAIL="admin@example.com"
-    ADMIN_PASSWORD="Admin@2025"
+    ADMIN_USERNAME="${WEBVIRT_ADMIN_USERNAME:-admin}"
+    ADMIN_EMAIL="${WEBVIRT_ADMIN_EMAIL:-admin@example.com}"
+    ADMIN_PASSWORD="${WEBVIRT_ADMIN_PASSWORD:-$(python -c 'import os,binascii; print(binascii.hexlify(os.urandom(18)))')}"
     echo "from django.contrib.auth.models import User; User.objects.create_superuser('$ADMIN_USERNAME', '$ADMIN_EMAIL', '$ADMIN_PASSWORD')" | python manage.py shell
     _green "✓ 管理员账号已创建"
     _green "✓ Admin account created"
@@ -346,8 +346,8 @@ completion_message() {
     _green "WebVirtMgr installation completed!"
     _green "访问 WebVirtMgr: http://$IPV4"
     _green "Access WebVirtMgr at: http://$IPV4"
-    _green "管理员账号/Admin account: admin"
-    _green "管理员密码/Admin password: Admin@2025"
+    _green "管理员账号/Admin account: ${ADMIN_USERNAME:-admin}"
+    _green "管理员密码/Admin password: ${ADMIN_PASSWORD:-see WEBVIRT_ADMIN_PASSWORD}"
     _yellow "请登录后立即修改密码"
     _yellow "Please change the password immediately after login"
     _yellow "注意: WebVirtMgr 安装在Python虚拟环境中，Python 2.7编译安装在 /opt/python2.7"

@@ -24,8 +24,14 @@ app = FastAPI(dependencies=[Depends(basic_auth)])
 @app.get("/metrics/", status_code=status.HTTP_200_OK)
 def metrics(query: Optional[str] = "", start: Optional[str] = "", end: Optional[str] = "", step: Optional[str] = ""):
     params = {"query": query, "start": start, "end": end, "step": step}
-    responce = requests.get(METRICS_URL, params=params).json()
-    return responce
+    try:
+        response = requests.get(METRICS_URL, params=params, timeout=10)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as err:
+        raise_error_msg(f"Metrics backend request failed: {err}")
+    except ValueError:
+        raise_error_msg("Metrics backend returned an invalid JSON response.")
 
 
 @app.post("/virtances/", response_model=VirtanceCreate, status_code=status.HTTP_201_CREATED)

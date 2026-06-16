@@ -8,7 +8,7 @@ export interface Loadbalancer {
   event: Event;
   created_at: string;
   redirect_http_to_https: boolean;
-  region: Region;
+  region: Region | null;
   health_check: {
     path: string;
     port: number;
@@ -19,7 +19,10 @@ export interface Loadbalancer {
     response_timeout_seconds: number;
   };
   virtance_ids: number[];
-  sticky_sessions?: string;
+  sticky_sessions?: {
+    cookie_name: string;
+    cookie_ttl_seconds: number;
+  } | null;
   forwarding_rules: {
     entry_port: number;
     entry_protocol: string;

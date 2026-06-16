@@ -13,7 +13,7 @@ STORAGE_USAGE_RATIO = settings.COMPUTE_STORAGE_PERCENTAGE_USAGE / 100
 
 
 def assign_free_compute(virtance_id):
-    virtance = Virtance.objects.get(id=virtance_id)
+    virtance = Virtance.objects.select_related("region", "template", "size").get(id=virtance_id, is_deleted=False)
     computes = Compute.objects.filter(
         region=virtance.region, is_active=True, is_deleted=False, arch=virtance.template.arch
     ).order_by("?")

@@ -42,6 +42,7 @@
     "date-fns": "^4.1.0",
     "js-cookie": "^3.0.5",
     "ky": "^1.7.2",
+    "lightweight-charts": "^4.2.3",
     "lucide-react": "^0.446.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

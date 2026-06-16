@@ -25,8 +25,8 @@ FROM --platform=$BUILDPLATFORM frontend-deps AS frontend-build
 WORKDIR /frontend/apps/web/
 
 COPY ./webvirtfrontend/apps/web/ /frontend/apps/web/
-COPY ./env.common /frontend/env.common
-COPY ./env.local /frontend/env.local
+COPY ./webvirtcloud/env.common /frontend/env.common
+COPY ./webvirtcloud/env.local /frontend/env.local
 
 RUN set -a; . /frontend/env.common; . /frontend/env.local; set +a; npm run build
 
@@ -35,8 +35,4 @@ FROM --platform=$BUILDPLATFORM caddy:2.10.0-alpine AS frontend
 COPY ./webvirtbackend/static/ /usr/share/caddy/
 
 COPY --from=frontend-build /frontend/apps/web/dist/assets/ /usr/share/caddy/assets/
-COPY --from=frontend-build /frontend/apps/web/dist/index.html /backend/templates/client/index.html
 COPY --from=frontend-build /frontend/apps/web/dist/manifest.webmanifest /usr/share/caddy/manifest.webmanifest
-# 添加证书
-COPY .caddy/certs/cert.pem /etc/caddy/certs/cert.pem
-COPY .caddy/certs/key.pem /etc/caddy/certs/key.pem

@@ -1,6 +1,5 @@
 import request from '@/shared/api/request';
-import { Image } from '../types';
 
-export const deleteImage = (id: number): Promise<unknown> => {
-  return request.delete(`images/${id}/`).json();
+export const deleteImage = async (id: number): Promise<void> => {
+  await request.delete(`images/${id}/`);
 };

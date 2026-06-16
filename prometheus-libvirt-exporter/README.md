@@ -25,6 +25,10 @@ The exporter can be configured using the following environment variables:
 - `-u` or `--uri`: The URI to connect to libvirt. Default: `qemu:///system`
 - `-a` or `--address`: The address the exporter will listen on. Default: `localhost`
 
+# Grafana
+
+Import `grafana-dashboard.json` into Grafana and select your Prometheus data source when prompted. The dashboard includes libvirt availability, domain count, CPU, memory, disk throughput, and network throughput panels.
+
 # Metrics
 The following metrics/labels are being exported:
 

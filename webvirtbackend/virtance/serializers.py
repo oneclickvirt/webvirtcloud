@@ -11,9 +11,8 @@ from size.serializers import SizeSerializer
 from image.serializers import ImageSerializer
 from region.serializers import RegionSerializer
 from compute.webvirt import WebVirtCompute
-from .models import Virtance
+from .models import Virtance, VirtanceHistory
 from .utils import virtance_error
-from .port_mapping import get_vm_port_mapping, get_public_ip, update_virtance_port_mapping
 from .tasks import create_virtance, action_virtance, resize_virtance, reset_password_virtance, rebuild_virtance
 from .tasks import enable_recovery_mode_virtance, disable_recovery_mode_virtance
 from .tasks import backups_delete, snapshot_virtance, restore_virtance
@@ -63,18 +62,15 @@ class VirtanceSerializer(serializers.ModelSerializer):
         )
 
     def get_status(self, obj):
-        if not hasattr(self.root, "many"):
-            obj.pending()
-            if obj.event is None:
-                if obj.compute is not None:
-                    wvcomp = WebVirtCompute(obj.compute.token, obj.compute.hostname)
-                    res = wvcomp.status_virtance(obj.id)
-                    if res.get("detail"):
-                        virtance_error(obj.id, res.get("detail"), event="status")
-                    if res.get("status") == "running":
-                        obj.active()
-                    if res.get("status") == "shutoff":
-                        obj.inactive()
+        if not hasattr(self.root, "many") and obj.event is None and obj.compute is not None:
+            wvcomp = WebVirtCompute(obj.compute.token, obj.compute.hostname)
+            res = wvcomp.status_virtance(obj.id) or {}
+            if res.get("detail"):
+                virtance_error(obj.id, res.get("detail"), event="status")
+            if res.get("status") == "running":
+                obj.active()
+            if res.get("status") == "shutoff":
+                obj.inactive()
         return obj.status
 
     def get_disk(self, obj):
@@ -92,15 +88,25 @@ class VirtanceSerializer(serializers.ModelSerializer):
         return []
 
     def get_backup_ids(self, obj):
-        return [image.id for image in Image.objects.filter(virtance=obj, type=Image.BACKUP, is_deleted=False)]
+        return [image.id for image in self._get_related_images(obj) if image.type == Image.BACKUP]
 
     def get_snapshot_ids(self, obj):
-        return [image.id for image in Image.objects.filter(virtance=obj, type=Image.SNAPSHOT, is_deleted=False)]
+        return [image.id for image in self._get_related_images(obj) if image.type == Image.SNAPSHOT]
+
+    def _get_related_images(self, obj):
+        if hasattr(obj, "prefetched_images"):
+            return obj.prefetched_images
+        return Image.objects.filter(source=obj, type__in=(Image.BACKUP, Image.SNAPSHOT), is_deleted=False)
+
+    def _get_ip_addresses(self, obj):
+        if hasattr(obj, "prefetched_ip_addresses"):
+            return obj.prefetched_ip_addresses
+        return IPAddress.objects.filter(virtance=obj, is_float=False).select_related("network")
 
     def get_networks(self, obj):
         v4 = []
         v6 = []
-        for ip in IPAddress.objects.filter(virtance=obj, is_float=False):
+        for ip in self._get_ip_addresses(obj):
             if ip.network.version == ip.network.IPv6:
                 v6.append(
                     {
@@ -110,46 +116,31 @@ class VirtanceSerializer(serializers.ModelSerializer):
                         "type": ip.network.type,
                     }
                 )
-            v4.append(
-                {
-                    "address": ip.address,
-                    "netmask": ip.network.netmask,
-                    "gateway": ip.network.gateway,
-                    "type": ip.network.type,
-                }
-            )
+            else:
+                v4.append(
+                    {
+                        "address": ip.address,
+                        "netmask": ip.network.netmask,
+                        "gateway": ip.network.gateway,
+                        "type": ip.network.type,
+                    }
+                )
         return {"v4": v4, "v6": v6}
 
     def get_port_mapping(self, obj):
-        """获取虚拟机端口映射信息"""
-        # 尝试从数据库获取
-        if obj.public_ip and obj.ssh_port:
-            return {
-                "public_ip": obj.public_ip,
-                "ssh_port": obj.ssh_port,
-                "port_range": f"{obj.port_range_start}-{obj.port_range_end}" if obj.port_range_start and obj.port_range_end else None,
-                "ssh_command": f"ssh -p {obj.ssh_port} root@{obj.public_ip}" if obj.public_ip and obj.ssh_port else None
-            }
-        
-        # 从映射文件实时获取
-        mapping_info = get_vm_port_mapping(obj.name)
-        public_ip = get_public_ip()
-        
-        if mapping_info and public_ip:
-            # 更新数据库中的信息
-            try:
-                update_virtance_port_mapping(obj)
-            except:
-                pass  # 忽略更新错误
-            
-            return {
-                "public_ip": public_ip,
-                "ssh_port": mapping_info['ssh_port'],
-                "port_range": f"{mapping_info['port_start']}-{mapping_info['port_end']}",
-                "ssh_command": f"ssh -p {mapping_info['ssh_port']} root@{public_ip}"
-            }
-        
-        return None
+        if not obj.public_ip or not obj.ssh_port:
+            return None
+
+        port_range = None
+        if obj.port_range_start and obj.port_range_end:
+            port_range = f"{obj.port_range_start}-{obj.port_range_end}"
+
+        return {
+            "public_ip": obj.public_ip,
+            "ssh_port": obj.ssh_port,
+            "port_range": port_range,
+            "ssh_command": f"ssh -p {obj.ssh_port} root@{obj.public_ip}",
+        }
 
 
 class CreateVirtanceSerializer(serializers.Serializer):
@@ -163,6 +154,21 @@ class CreateVirtanceSerializer(serializers.Serializer):
     password = serializers.CharField(required=False, allow_blank=True)
     keypairs = serializers.ListField(required=False, allow_empty=True)
     user_data = serializers.CharField(required=False, allow_blank=True)
+
+    def _get_template(self, image_id_or_slug):
+        user = self.context.get("request").user
+        if image_id_or_slug.isdigit():
+            return Image.objects.get(
+                Q(type=Image.SNAPSHOT, user=user) | Q(type=Image.BACKUP, user=user) | Q(type=Image.CUSTOM, user=user),
+                id=image_id_or_slug,
+                is_deleted=False,
+            )
+        return Image.objects.get(
+            Q(type=Image.DISTRIBUTION) | Q(type=Image.APPLICATION),
+            slug=image_id_or_slug,
+            user=None,
+            is_deleted=False,
+        )
 
     def validate(self, attrs):
         size = attrs.get("size")
@@ -198,22 +204,14 @@ class CreateVirtanceSerializer(serializers.Serializer):
             raise serializers.ValidationError({"size": ["Size not found."]})
 
         # Check if image is active
-        if image.isdigit():
-            try:
-                check_image = Image.objects.get(
-                    Q(type=Image.SNAPSHOT) | Q(type=Image.BACKUP) | Q(type=Image.CUSTOM), id=image, is_deleted=False
-                )
-            except Image.DoesNotExist:
-                raise serializers.ValidationError({"image": ["Image not found."]})
-        else:
-            try:
-                check_image = Image.objects.get(
-                    Q(type=Image.DISTRIBUTION) | Q(type=Image.APPLICATION), slug=image, is_deleted=False
-                )
-                if check_image.is_active is False:
-                    raise serializers.ValidationError({"image": ["Image is not active."]})
-            except Image.DoesNotExist:
-                raise serializers.ValidationError({"image": ["Image not found."]})
+        try:
+            check_image = self._get_template(image)
+        except Image.DoesNotExist:
+            raise serializers.ValidationError({"image": ["Image not found."]})
+
+        if check_image.is_active is False:
+            raise serializers.ValidationError({"image": ["Image is not active."]})
+        self.context["template"] = check_image
 
         # Check if size is available in region
         if check_region not in check_size.regions.all():
@@ -242,10 +240,9 @@ class CreateVirtanceSerializer(serializers.Serializer):
         user_data = validated_data.get("user_data")
         image_id_or_slug = validated_data.get("image")
 
-        if image_id_or_slug.isdigit():
-            template = Image.objects.get(id=image_id_or_slug)
-        else:
-            template = Image.objects.get(slug=image_id_or_slug)
+        template = self.context.get("template")
+        if template is None:
+            template = self._get_template(image_id_or_slug)
 
         if template.type == Image.SNAPSHOT or template.type == Image.BACKUP:
             template.event = Image.RESTORE
@@ -299,6 +296,7 @@ class VirtanceActionSerializer(serializers.Serializer):
             "shutdown",
             "power_on",
             "power_off",
+            "power_cycle",
             "power_cyrcle",
             "password_reset",
             "enable_backups",
@@ -342,30 +340,45 @@ class VirtanceActionSerializer(serializers.Serializer):
             if attrs.get("image") is None:
                 raise serializers.ValidationError({"image": ["This field is required."]})
             try:
-                Image.objects.get(Q(type=Image.DISTRIBUTION) | Q(type=Image.APPLICATION), slug=attrs.get("image"))
+                image = Image.objects.get(
+                    Q(type=Image.DISTRIBUTION) | Q(type=Image.APPLICATION),
+                    slug=attrs.get("image"),
+                    user=None,
+                    is_deleted=False,
+                    is_active=True,
+                )
             except Image.DoesNotExist:
                 raise serializers.ValidationError({"image": ["Image not found."]})
+            if virtance.region not in image.regions.all():
+                raise serializers.ValidationError({"image": ["Image is not available in the region."]})
+            self.context["rebuild_image"] = image
 
         if attrs.get("action") == "password_reset":
             if attrs.get("password"):
-                if len(attrs.get("password")) == 8:
-                    if not re.match(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$", attrs.get("password")):
-                        raise serializers.ValidationError(
-                            {
-                                "password": [
-                                    "Password must contain at least one uppercase letter, "
-                                    "one lowercase letter and one digit."
-                                ]
-                            }
-                        )
+                if len(attrs.get("password")) < 8:
+                    raise serializers.ValidationError({"password": ["Password must be at least 8 characters long."]})
+                if not re.match(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$", attrs.get("password")):
+                    raise serializers.ValidationError(
+                        {
+                            "password": [
+                                "Password must contain at least one uppercase letter, one lowercase letter and one digit."
+                            ]
+                        }
+                    )
 
         if attrs.get("action") == "restore":
             if attrs.get("image") is None:
                 raise serializers.ValidationError({"image": ["This field is required."]})
             try:
-                Image.objects.get(Q(type=Image.SNAPSHOT) | Q(type=Image.BACKUP), id=attrs.get("image"), user=user)
+                image = Image.objects.get(
+                    Q(type=Image.SNAPSHOT) | Q(type=Image.BACKUP),
+                    id=attrs.get("image"),
+                    user=user,
+                    is_deleted=False,
+                )
             except Image.DoesNotExist:
                 raise serializers.ValidationError({"image": ["Image not found."]})
+            self.context["restore_image"] = image
 
         if attrs.get("action") == "snapshot":
             if virtance.region.features.filter(name="snapshot").exists() is False:
@@ -385,11 +398,11 @@ class VirtanceActionSerializer(serializers.Serializer):
 
         if attrs.get("action") == "enable_recovery_mode":
             if virtance.is_recovery_mode is True:
-                raise serializers.ValidationError({"name": ["Recovey mode is already enabled."]})
+                raise serializers.ValidationError({"name": ["Recovery mode is already enabled."]})
 
         if attrs.get("action") == "disable_recovery_mode":
             if virtance.is_recovery_mode is False:
-                raise serializers.ValidationError({"name": ["Recovey mode is already disabled."]})
+                raise serializers.ValidationError({"name": ["Recovery mode is already disabled."]})
 
         return attrs
 
@@ -400,13 +413,16 @@ class VirtanceActionSerializer(serializers.Serializer):
         action = validated_data.get("action")
         virtance = self.context.get("virtance")
         password = validated_data.get("password")
+        if action == "power_cyrcle":
+            action = Virtance.POWER_CYCLE
 
         # Set new task event
         virtance.event = action
-        virtance.status = virtance.PENDING
+        if action in ["power_on", "power_off", "power_cycle", "shutdown", "reboot"]:
+            virtance.status = virtance.PENDING
         virtance.save()
 
-        if action in ["power_on", "power_off", "power_cyrcle", "shutdown", "reboot"]:
+        if action in ["power_on", "power_off", "power_cycle", "shutdown", "reboot"]:
             action_virtance.delay(virtance.id, action)
 
         if action == "rename":
@@ -415,7 +431,15 @@ class VirtanceActionSerializer(serializers.Serializer):
             virtance.reset_event()
 
         if action == "rebuild":
-            image = Image.objects.get(slug=image)
+            image = self.context.get("rebuild_image")
+            if image is None:
+                image = Image.objects.get(
+                    Q(type=Image.DISTRIBUTION) | Q(type=Image.APPLICATION),
+                    slug=image,
+                    user=None,
+                    is_deleted=False,
+                    is_active=True,
+                )
             virtance.template = image
             virtance.save()
             rebuild_virtance.delay(virtance.id)
@@ -431,7 +455,14 @@ class VirtanceActionSerializer(serializers.Serializer):
             snapshot_virtance.delay(virtance.id, name)
 
         if action == "restore":
-            snapshot = Image.objects.get(id=image)
+            snapshot = self.context.get("restore_image")
+            if snapshot is None:
+                snapshot = Image.objects.get(
+                    Q(type=Image.SNAPSHOT) | Q(type=Image.BACKUP),
+                    id=image,
+                    user=self.context.get("user"),
+                    is_deleted=False,
+                )
 
             if snapshot.event is not None:
                 raise serializers.ValidationError("The image already has event.")
@@ -459,7 +490,7 @@ class VirtanceActionSerializer(serializers.Serializer):
 
 class VirtanceHistorySerializer(serializers.ModelSerializer):
     class Meta:
-        model = Virtance
+        model = VirtanceHistory
         fields = (
             "id",
             "event",

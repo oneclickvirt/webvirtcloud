@@ -10,6 +10,50 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 
+def _as_text(value):
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple)):
+        return _as_text(value[0]) if value else ""
+    if isinstance(value, dict):
+        return _as_text(next(iter(value.values()))) if value else ""
+    return str(value)
+
+
+def _error_details(data, prefix=None):
+    if data is None:
+        return {}
+
+    if isinstance(data, dict):
+        errors = {}
+        for key, value in data.items():
+            field_name = f"{prefix}.{key}" if prefix else key
+            if key == "detail":
+                continue
+            if isinstance(value, dict):
+                errors.update(_error_details(value, field_name))
+            elif isinstance(value, (list, tuple)):
+                errors[field_name] = [_as_text(item) for item in value] or [""]
+            else:
+                errors[field_name] = [_as_text(value)]
+        return errors
+
+    if isinstance(data, (list, tuple)):
+        return {"non_field_errors": [_as_text(item) for item in data] or [""]}
+
+    return {"non_field_errors": [_as_text(data)]}
+
+
+def _api_error_payload(message, status_code, errors=None):
+    payload = {
+        "message": _as_text(message) or HTTPStatus(status_code).description,
+        "status_code": status_code,
+    }
+    if errors:
+        payload["errors"] = errors
+    return payload
+
+
 def success_message_response(message):
     status_code = status.HTTP_200_OK
     success_payload = {
@@ -19,26 +63,16 @@ def success_message_response(message):
     return Response(success_payload, status=status_code)
 
 
-def error_message_response(message):
-    status_code = status.HTTP_400_BAD_REQUEST
-    error_payload = {
-        "message": message,
-        "status_code": status_code,
-    }
-    return Response(error_payload, status=status_code)
+def error_message_response(message, status_code=status.HTTP_400_BAD_REQUEST, errors=None):
+    return Response(_api_error_payload(message, status_code, errors), status=status_code)
 
 
 def app_exception_handler(exc, context):
-    error_message = None
     response = exception_handler(exc, context)
 
     if response is not None:
-        error_fileds = []
-        error_payload = {
-            "message": "",
-            "status_code": 0,
-        }
         status_code = response.status_code
+        error_message = None
 
         if isinstance(response.data, dict):
             detail_error = response.data.get("detail")
@@ -58,21 +92,9 @@ def app_exception_handler(exc, context):
             error_message = response.data[0]
 
         if not error_message:
-            for key, value in response.data.items():
-                if isinstance(value, list):
-                    error_fileds.append({key: value[0]})
-                if isinstance(value, dict):
-                    for k, v in value.items():
-                        if isinstance(v, list):
-                            error_fileds.append({k: v[0]})
-                        else:
-                            error_fileds.append({k: v})
-            error_payload["errors"] = error_fileds
             error_message = HTTPStatus(status_code).description
 
-        error_payload["message"] = error_message
-        error_payload["status_code"] = status_code
-        response.data = error_payload
+        response.data = _api_error_payload(error_message, status_code, _error_details(response.data))
     return response
 
 

@@ -28,22 +28,19 @@ class FwRedirect(object):
         self.args = ["-d", self.src, "-j", self.jmp, "--to-destination", self.dst]
 
     def set_state(self):
-        f = open(FIREWALLD_STATE_FILE, "w")
-        f.write("1")
-        f.close()
+        with open(FIREWALLD_STATE_FILE, "w") as f:
+            f.write("1")
 
     def unset_state(self):
-        f = open(FIREWALLD_STATE_FILE, "w")
-        f.write("0")
-        f.close()
+        with open(FIREWALLD_STATE_FILE, "w") as f:
+            f.write("0")
 
     def read_state(self):
         if os.path.isfile(FIREWALLD_STATE_FILE):
-            f = open(FIREWALLD_STATE_FILE, "r")
-            f_data = f.read()
-            f.close()
+            with open(FIREWALLD_STATE_FILE, "r") as f:
+                f_data = f.read().strip()
             if f_data:
-                state = eval(f_data)
+                state = f_data == "1"
             else:
                 self.unset_state()
                 state = False

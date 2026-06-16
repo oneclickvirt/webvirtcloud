@@ -3,7 +3,7 @@ import requests
 from base64 import b64encode
 from django.conf import settings
 from urllib.parse import urlencode
-from requests.exceptions import ConnectTimeout
+from requests.exceptions import RequestException
 
 
 urllib3.disable_warnings()
@@ -36,40 +36,52 @@ class WebVirtCompute(object):
         try:
             response = requests.get(url, headers=self._headers(), stream=stream, timeout=5, verify=False)
             return response
-        except ConnectTimeout:
-            return {"detail": "Connection to compute timeout."}
+        except RequestException as exc:
+            return {"detail": f"Connection to compute failed: {exc}"}
 
     def _make_post(self, url, params):
         url = self._url() + url
         try:
-            response = requests.post(url, headers=self._headers(), json=params, verify=False)
+            response = requests.post(url, headers=self._headers(), json=params, timeout=5, verify=False)
             return response
-        except ConnectTimeout:
-            return {"detail": "Connection to compute timeout."}
+        except RequestException as exc:
+            return {"detail": f"Connection to compute failed: {exc}"}
 
     def _make_put(self, url, params):
         url = self._url() + url
         try:
-            response = requests.put(url, headers=self._headers(), json=params, verify=False)
+            response = requests.put(url, headers=self._headers(), json=params, timeout=5, verify=False)
             return response
-        except ConnectTimeout:
-            return {"detail": "Connection to compute timeout."}
+        except RequestException as exc:
+            return {"detail": f"Connection to compute failed: {exc}"}
 
     def _make_delete(self, url, params=None):
         url = self._url() + url
         try:
-            response = requests.delete(url, headers=self._headers(), json=params, verify=False)
+            response = requests.delete(url, headers=self._headers(), json=params, timeout=5, verify=False)
             return response
-        except ConnectTimeout:
-            return {"detail": "Connection to compute timeout."}
+        except RequestException as exc:
+            return {"detail": f"Connection to compute failed: {exc}"}
 
     def _process_response(self, response, json=True):
         if isinstance(response, dict):
             return response
         if response.status_code == 204:
             return {}
+        if not response.ok:
+            try:
+                body = response.json()
+            except ValueError:
+                body = response.text
+            if isinstance(body, dict):
+                body.setdefault("detail", response.reason)
+                return body
+            return {"detail": body or response.reason, "status_code": response.status_code}
         if json:
-            body = response.json()
+            try:
+                body = response.json()
+            except ValueError:
+                return {"detail": "Compute returned an invalid JSON response."}
             if body:
                 if isinstance(body, bytes) and hasattr(body, "decode"):
                     body = body.decode("utf-8")

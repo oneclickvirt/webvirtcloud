@@ -88,7 +88,6 @@ class Virtance(models.Model):
     is_deleted = models.BooleanField(default=False)
     is_recovery_mode = models.BooleanField(default=False)
     is_backup_enabled = models.BooleanField(default=False)
-    # 端口映射信息
     public_ip = models.GenericIPAddressField(null=True, blank=True, help_text="公网IP地址")
     ssh_port = models.IntegerField(null=True, blank=True, help_text="SSH端口映射")
     port_range_start = models.IntegerField(null=True, blank=True, help_text="端口范围起始")
@@ -96,95 +95,6 @@ class Virtance(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     deleted = models.DateTimeField(null=True, blank=True)
-from uuid import uuid4
-from django.db import models
-from django.conf import settings
-from django.utils import timezone
-
-
-class Virtance(models.Model):
-    ACTIVE = "active"
-    PENDING = "pending"
-    INACTIVE = "inactive"
-    STATUS_CHOICES = (
-        (ACTIVE, "Active"),
-        (PENDING, "Pending"),
-        (INACTIVE, "Inactive"),
-    )
-
-    CREATE = "create"
-    DELETE = "delete"
-    REBOOT = "reboot"
-    RESIZE = "resize"
-    RENAME = "rename"
-    BACKUP = "backup"
-    REBUILD = "rebuild"
-    RESTORE = "restore"
-    SNAPSHOT = "snapshot"
-    SHUTDOWN = "shutdown"
-    POWER_ON = "power_on"
-    POWER_OFF = "power_off"
-    POWER_CYCLE = "power_cycle"
-    PASSWORD_RESET = "password_reset"
-    ENABLE_BACKUPS = "enable_backups"
-    DISABLE_BACKUPS = "disable_backups"
-    FIREWALL_ATTACH = "firewall_attach"
-    FIREWALL_DETACH = "firewall_detach"
-    ASSIGN_FLOATING_IP = "assign_floating_ip"
-    UNASSIGN_FLOATING_IP = "unassign_floating_ip"
-    ENABLE_RECOVERY_MODE = "enable_recovery_mode"
-    DISABLE_RECOVERY_MODE = "disable_recovery_mode"
-    EVENT_CHOICES = (
-        (CREATE, "Create"),
-        (DELETE, "Delete"),
-        (REBOOT, "Reboot"),
-        (RESIZE, "Resize"),
-        (RENAME, "Rename"),
-        (BACKUP, "Backup"),
-        (REBUILD, "Rebuild"),
-        (RESTORE, "Restore"),
-        (SNAPSHOT, "Snapshot"),
-        (SHUTDOWN, "Shutdown"),
-        (POWER_ON, "Power On"),
-        (POWER_OFF, "Power Off"),
-        (POWER_CYCLE, "Power Cycle"),
-        (PASSWORD_RESET, "Password Reset"),
-        (ENABLE_BACKUPS, "Enable Backups"),
-        (DISABLE_BACKUPS, "Disable Backups"),
-        (FIREWALL_ATTACH, "Attach Firewall"),
-        (FIREWALL_DETACH, "Detach Firewall"),
-        (ASSIGN_FLOATING_IP, "Assign Floating IP"),
-        (UNASSIGN_FLOATING_IP, "Unassign Floating IP"),
-        (ENABLE_RECOVERY_MODE, "Enable Recovery Mode"),
-        (DISABLE_RECOVERY_MODE, "Disable Recovery Mode"),
-    )
-
-    K8AAS = "k8aas"
-    DBAAS = "dbaas"
-    LBAAS = "lbaas"
-    VIRTANCE = "virtance"
-    TYPE_CHOICES = (
-        (VIRTANCE, "Virtance"),
-        (K8AAS, "Kubernetes"),
-        (DBAAS, "Database"),
-        (LBAAS, "Load Balancer"),
-    )
-
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, models.PROTECT)
-    size = models.ForeignKey("size.Size", models.PROTECT)
-    region = models.ForeignKey("region.Region", models.PROTECT)
-    compute = models.ForeignKey("compute.Compute", models.PROTECT, null=True, blank=True)
-    template = models.ForeignKey("image.Image", models.PROTECT)
-    type = models.CharField(max_length=40, choices=TYPE_CHOICES, default=VIRTANCE)
-    event = models.CharField(max_length=40, choices=EVENT_CHOICES, default=CREATE, blank=True, null=True)
-    uuid = models.UUIDField(unique=True, editable=False, default=uuid4)
-    name = models.CharField(max_length=100)
-    disk = models.BigIntegerField()
-    status = models.CharField(max_length=100, choices=STATUS_CHOICES, default=PENDING)
-    user_data = models.TextField(blank=True, null=True)
-    is_locked = models.BooleanField(default=False)
-    is_deleted = models.BooleanField(default=False)
-    is_recovery_mode = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-id"]

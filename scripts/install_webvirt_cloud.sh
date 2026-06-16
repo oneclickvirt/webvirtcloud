@@ -9,21 +9,107 @@
 set -e
 export DEBIAN_FRONTEND=noninteractive
 cd /root >/dev/null 2>&1
+
+NON_INTERACTIVE=false
+QUIET=false
+LOG_FILE="${WEBVIRT_INSTALL_LOG:-/var/log/webvirtcloud-install.log}"
+
+usage() {
+    cat <<EOF
+Usage: $0 [--non-interactive] [--quiet] [--help]
+用法: $0 [--non-interactive] [--quiet] [--help]
+
+Environment variables used in non-interactive mode:
+非交互模式可使用的环境变量:
+  WEBVIRT_DOMAIN              Controller domain or LAN IP. Defaults to public <ip>.nip.io, or LAN IP when no public IP is available.
+  WEBVIRT_DOMAIN              控制器域名或内网 IP。默认使用公网 <ip>.nip.io；没有公网 IP 时使用本机内网 IP。
+  WEBVIRT_DB_PASSWORD         MariaDB application password, generated if empty
+  WEBVIRT_DB_PASSWORD         MariaDB 应用用户密码，留空时自动生成
+  WEBVIRT_DB_ROOT_PASSWORD    MariaDB root password, generated if empty
+  WEBVIRT_DB_ROOT_PASSWORD    MariaDB root 密码，留空时自动生成
+  WEBVIRT_RABBITMQ_PASSWORD   RabbitMQ password, generated if empty
+  WEBVIRT_RABBITMQ_PASSWORD   RabbitMQ 密码，留空时自动生成
+  WEBVIRT_DJANGO_SECRET_KEY   Django secret key, generated if empty
+  WEBVIRT_DJANGO_SECRET_KEY   Django 密钥，留空时自动生成
+  WEBVIRT_ADMIN_EMAIL         Initial admin email, defaults to admin@spiritlhl.net
+  WEBVIRT_ADMIN_EMAIL         初始管理员邮箱，默认 admin@spiritlhl.net
+  WEBVIRT_ADMIN_PASSWORD      Initial admin password, generated if empty
+  WEBVIRT_ADMIN_PASSWORD      初始管理员密码，留空时自动生成
+  CN                          true to force China mirrors, false to skip mirror prompt
+  CN                          true 强制使用中国镜像，false 跳过镜像提示
+EOF
+}
+
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+        --non-interactive)
+            NON_INTERACTIVE=true
+            ;;
+        --quiet)
+            QUIET=true
+            ;;
+        --help | -h)
+            usage
+            exit 0
+            ;;
+        *)
+            _red "Unknown argument: $1"
+            _red "未知参数: $1"
+            usage
+            exit 1
+            ;;
+        esac
+        shift
+    done
+}
+
+setup_logging() {
+    mkdir -p "$(dirname "$LOG_FILE")"
+    touch "$LOG_FILE"
+    if [[ "$QUIET" == true ]]; then
+        exec > >(tee -a "$LOG_FILE" >/dev/null) 2>&1
+    else
+        exec > >(tee -a "$LOG_FILE") 2>&1
+    fi
+}
+
+generate_secret() {
+    local bytes="${1:-32}"
+    if command -v openssl >/dev/null 2>&1; then
+        openssl rand -hex "$bytes"
+    elif command -v python3 >/dev/null 2>&1; then
+        python3 - "$bytes" <<'PY'
+import secrets
+import sys
+
+print(secrets.token_hex(int(sys.argv[1])))
+PY
+    else
+        _red "Neither openssl nor python3 is available to generate secrets"
+        _red "未找到 openssl 或 python3，无法生成密钥"
+        exit 1
+    fi
+}
+
 setup_locale() {
     utf8_locale=$(locale -a 2>/dev/null | grep -i -m 1 -E "UTF-8|utf8")
     if [[ -z "$utf8_locale" ]]; then
         echo "No UTF-8 locale found"
+        echo "未找到 UTF-8 语言环境"
     else
         export LC_ALL="$utf8_locale"
         export LANG="$utf8_locale"
         export LANGUAGE="$utf8_locale"
         echo "Locale set to $utf8_locale"
+        echo "语言环境设置为 $utf8_locale"
     fi
 }
 
 check_root() {
     if [ "$(id -u)" != "0" ]; then
         _red "This script must be run as root" 1>&2
+        _red "此脚本必须以 root 用户运行" 1>&2
         exit 1
     fi
 }
@@ -151,6 +237,7 @@ is_private_ipv4() {
 
 check_ipv4() {
     IPV4=$(ip -4 addr show | grep global | awk '{print $2}' | cut -d '/' -f1 | head -n 1)
+    LOCAL_IPV4="$IPV4"
     if is_private_ipv4 "$IPV4"; then # 由于是内网IPv4地址，需要通过API获取外网地址
         IPV4=""
         local API_NET=("ipv4.ip.sb" "ipget.net" "ip.ping0.cc" "https://ip4.seeip.org" "https://api.my-ip.io/ip" "https://ipv4.icanhazip.com" "api.ipify.org")
@@ -163,6 +250,12 @@ check_ipv4() {
                 break
             fi
         done
+        if [ -z "$IPV4" ] && [ -n "$LOCAL_IPV4" ]; then
+            IPV4="$LOCAL_IPV4"
+            IP_API="local"
+            _yellow "No public IPv4 detected; using LAN IPv4 for intranet deployment: $IPV4"
+            _yellow "未检测到公网 IPv4，将使用内网 IPv4 进行内网部署: $IPV4"
+        fi
     fi
     export IPV4
 }
@@ -234,6 +327,17 @@ check_china() {
     _yellow "Detecting IP region......"
     _yellow "检测IP区域......"
     if [[ -z "${CN}" ]]; then
+        if [[ "$NON_INTERACTIVE" == true ]]; then
+            case "${CN:-false}" in
+            true | TRUE | yes | YES | 1)
+                CN=true
+                ;;
+            *)
+                CN=false
+                ;;
+            esac
+            return
+        fi
         if [[ $(curl -m 6 -s https://ipapi.co/json | grep 'China') != "" ]]; then
             _yellow "According to ipapi.co, your current IP may be in China"
             _yellow "根据ipapi.co提供的信息，当前IP可能在中国"
@@ -331,19 +435,52 @@ install_controller() {
     fi
     _yellow "Creating environment configuration file..."
     _yellow "创建环境配置文件..."
-    DOMAIN_NAME="$(echo "$IPV4" | tr '.' '-')".nip.io
+    if [ -n "${WEBVIRT_DOMAIN:-}" ]; then
+        DOMAIN_NAME="$WEBVIRT_DOMAIN"
+    elif is_private_ipv4 "$IPV4"; then
+        DOMAIN_NAME="$IPV4"
+    else
+        DOMAIN_NAME="$(echo "$IPV4" | tr '.' '-').nip.io"
+    fi
+    DB_PASSWORD="${WEBVIRT_DB_PASSWORD:-$(generate_secret 24)}"
+    DB_ROOT_PASSWORD="${WEBVIRT_DB_ROOT_PASSWORD:-$(generate_secret 24)}"
+    RABBITMQ_PASSWORD="${WEBVIRT_RABBITMQ_PASSWORD:-$(generate_secret 24)}"
+    DJANGO_SECRET_KEY="${WEBVIRT_DJANGO_SECRET_KEY:-$(generate_secret 48)}"
+    ADMIN_EMAIL="${WEBVIRT_ADMIN_EMAIL:-admin@spiritlhl.net}"
+    ADMIN_PASSWORD="${WEBVIRT_ADMIN_PASSWORD:-$(generate_secret 18)}"
     mkdir -p .caddy/certs
-    openssl req -x509 -newkey rsa:4096 -keyout .caddy/certs/key.pem -out .caddy/certs/cert.pem -days 365 -nodes -subj "/CN=${DOMAIN_NAME}"
+    cert_subject_alt_name="DNS:${DOMAIN_NAME}"
+    if [[ "$DOMAIN_NAME" =~ ^[0-9]+(\.[0-9]+){3}$ ]]; then
+        cert_subject_alt_name="IP:${DOMAIN_NAME}"
+    fi
+    if ! openssl req -x509 -newkey rsa:4096 -keyout .caddy/certs/key.pem -out .caddy/certs/cert.pem -days 365 -nodes -subj "/CN=${DOMAIN_NAME}" -addext "subjectAltName=${cert_subject_alt_name}"; then
+        _yellow "OpenSSL does not support subjectAltName -addext; generating a legacy self-signed certificate."
+        _yellow "OpenSSL 不支持 subjectAltName -addext，将生成兼容模式自签证书。"
+        rm -f .caddy/certs/key.pem .caddy/certs/cert.pem
+        openssl req -x509 -newkey rsa:4096 -keyout .caddy/certs/key.pem -out .caddy/certs/cert.pem -days 365 -nodes -subj "/CN=${DOMAIN_NAME}"
+    fi
     cp Caddyfile.selfsigned Caddyfile
     cat >env.local <<EOF
 DOMAIN_NAME=${DOMAIN_NAME}
+DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+DJANGO_ALLOWED_HOSTS=${DOMAIN_NAME},localhost,127.0.0.1,backend
+CSRF_TRUSTED_ORIGINS=https://${DOMAIN_NAME},http://${DOMAIN_NAME}
+MARIADB_PASSWORD=${DB_PASSWORD}
+MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+DB_PASSWORD=${DB_PASSWORD}
+RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+CELERY_BROKER_URL=amqp://django:${RABBITMQ_PASSWORD}@rabbitmq:5672//webvirtcloud
+WEBVIRT_ADMIN_EMAIL=${ADMIN_EMAIL}
+WEBVIRT_ADMIN_PASSWORD=${ADMIN_PASSWORD}
+VITE_API_PREFIX=/api/v1
 VITE_DISPLAY_PRICES=true
 VITE_LOADBALANCER=true
 EOF
-    cat env.local
+    _green "env.local generated with secure runtime secrets."
+    _green "已生成包含随机密钥的 env.local。"
     _yellow "Starting WebVirtCloud..."
     _yellow "启动WebVirtCloud..."
-    chmod 777 webvirtcloud.sh
+    chmod +x webvirtcloud.sh
     ./webvirtcloud.sh start
     if [ $? -eq 0 ]; then
         _green "WebVirtCloud installation completed successfully!"
@@ -351,17 +488,17 @@ EOF
         _green "User Panel: https://${DOMAIN_NAME}"
         _green "Admin Panel: https://${DOMAIN_NAME}/admin/"
         _green "Ensure your firewall allows access to ports 80 (HTTP) and 443 (HTTPS) for the WebVirtCloud interface."
-        _green "Default Credentials:"
-        _green "Username: admin@spiritlhl.net"
-        _green "Password: admin"
+        _green "Initial Admin Credentials:"
+        _green "Username: ${ADMIN_EMAIL}"
+        _green "Password: ${ADMIN_PASSWORD}"
         _green "WebVirtCloud安装成功完成！"
         _green "您可以通过以下地址访问WebVirtCloud界面"
         _green "用户面板: https://${DOMAIN_NAME}"
         _green "管理员面板: https://${DOMAIN_NAME}/admin/"
         _green "请确保您的防火墙允许访问WebVirtCloud界面的80端口（HTTP）和443端口（HTTPS）。"
-        _green "默认凭据："
-        _green "用户名: admin@spiritlhl.net"
-        _green "密码: admin"
+        _green "初始管理员凭据："
+        _green "用户名: ${ADMIN_EMAIL}"
+        _green "密码: ${ADMIN_PASSWORD}"
     else
         _red "WebVirtCloud failed to start. Please check the logs for more information."
         _red "WebVirtCloud启动失败。请查看日志以获取更多信息。"
@@ -373,7 +510,9 @@ EOF
 ###########################################
 
 main() {
+    parse_args "$@"
     check_root
+    setup_logging
     setup_locale
     init_system_vars
     if [[ "${RELEASE[int]}" != "Debian" && "${RELEASE[int]}" != "Ubuntu" && "${RELEASE[int]}" != "CentOS" ]]; then
@@ -415,4 +554,4 @@ main() {
     _green "执行完成!"
 }
 
-main
+main "$@"

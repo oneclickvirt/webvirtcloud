@@ -7,7 +7,7 @@
 	@cors_preflight method OPTIONS
 
 	handle @cors_preflight {
-		header Access-Control-Allow-Origin *
+		header Access-Control-Allow-Origin "https://{$DOMAIN_NAME}"
 		header Access-Control-Allow-Credentials true
 		header Access-Control-Allow-Methods "GET, POST, PUT, OPTIONS, DELETE"
 		header Access-Control-Allow-Headers "Accept,Content-Type,Authorization"
@@ -27,19 +27,21 @@ https://{$DOMAIN_NAME} {
 		file_server
 	}
 
-	handle_path /* {
-		reverse_proxy http://backend:8000 {
-			header_up Host {host}
-			header_up X-Real-IP {remote}
-			header_down Access-Control-Allow-Origin *
-		}
-	}
-
 	handle_path /novnc/* {
 		reverse_proxy http://novnc:6080 {
 			header_up Host {host}
 			header_up X-Real-IP {remote}
-			header_down Access-Control-Allow-Origin *
+			header_up X-Forwarded-Proto {scheme}
+			header_down Access-Control-Allow-Origin "https://{$DOMAIN_NAME}"
+		}
+	}
+
+	handle_path /* {
+		reverse_proxy http://backend:8000 {
+			header_up Host {host}
+			header_up X-Real-IP {remote}
+			header_up X-Forwarded-Proto {scheme}
+			header_down Access-Control-Allow-Origin "https://{$DOMAIN_NAME}"
 		}
 	}
 }

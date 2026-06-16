@@ -69,7 +69,7 @@ export function LoadbalancerLayout() {
                   <p className="text-muted-foreground text-sm">
                     {loadbalancer.virtance_ids.length} virtances /{' '}
                     <span className="text-foreground font-medium">
-                      {loadbalancer.region.name}
+                      {loadbalancer.region?.name ?? 'N/A'}
                     </span>{' '}
                     region
                     {loadbalancer.ip && <span> / {loadbalancer.ip}</span>}

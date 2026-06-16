@@ -21,7 +21,7 @@ export function BillingInvoicesTable() {
         window.URL.revokeObjectURL(url);
       }, 100);
     } catch (error) {
-      toast.error('Bad request', { description: 'Faild to download pdf file' });
+      toast.error('Bad request', { description: 'Failed to download pdf file' });
     }
   }
 

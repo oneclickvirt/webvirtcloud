@@ -6,6 +6,7 @@ import { Error } from 'ui/components/error';
 import { Input } from 'ui/components/input';
 
 import { register as authRegister } from '@/entities/auth';
+import { getHTTPErrorMessage } from '@/shared/api/errors';
 
 interface IFormInputs {
   email: string;
@@ -29,9 +30,9 @@ export function SignUpForm({ onSuccess }: Props) {
       const { token } = await authRegister(data);
 
       onSuccess(token);
-    } catch (e) {
-      const { message } = await e.response.json();
-      setError('root', { message: 'Bad request' });
+    } catch (error) {
+      const message = await getHTTPErrorMessage(error);
+      setError('root', { message });
       toast.error('Bad request', { description: message });
     }
   }
@@ -62,8 +63,8 @@ export function SignUpForm({ onSuccess }: Props) {
             placeholder="Secure password"
             {...register('password', {
               minLength: {
-                value: 6,
-                message: 'Password should be at least 6 characters.',
+                value: 8,
+                message: 'Password should be at least 8 characters.',
               },
               required: 'Password is required.',
             })}

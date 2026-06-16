@@ -1,26 +1,36 @@
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Button } from 'ui/components/button';
 import { Error } from 'ui/components/error';
 import { Input } from 'ui/components/input';
 
-import { resetPassword } from '@/entities/auth';
+import { requestPasswordReset } from '@/entities/auth';
+import { getHTTPErrorMessage } from '@/shared/api/errors';
 
 interface IFormInputs {
-  password: string;
+  email: string;
 }
 
 export function ResetPasswordForm() {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { isSubmitting, errors },
   } = useForm<IFormInputs>();
 
-  function onSubmit(data: IFormInputs) {
+  async function onSubmit(data: IFormInputs) {
     try {
-      resetPassword(data);
-    } catch (error) {}
+      await requestPasswordReset(data);
+      toast.success('Password reset email sent', {
+        description: 'Check your inbox for the reset link.',
+      });
+    } catch (error) {
+      const message = await getHTTPErrorMessage(error);
+      setError('root', { message });
+      toast.error('Bad request', { description: message });
+    }
   }
 
   return (
@@ -28,22 +38,22 @@ export function ResetPasswordForm() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
           <Input
-            id="new_password"
-            type="password"
-            placeholder="Enter new secure password"
-            {...register('password', {
-              minLength: {
-                value: 6,
-                message: 'Password should be at least 6 characters.',
+            id="email"
+            type="email"
+            placeholder="Ex. account@gmail.com"
+            {...register('email', {
+              pattern: {
+                value: /\S+@\S+\.\S+/,
+                message: 'Entered value does not match email format',
               },
-              required: 'Password is required.',
+              required: 'Email is required.',
             })}
-            error={!!errors.password}
+            error={!!errors.email}
           />
-          {errors.password && <Error className="mt-1">{errors.password.message}</Error>}
+          {errors.email && <Error className="mt-1">{errors.email.message}</Error>}
         </div>
-        <Button className="w-full" disabled={isSubmitting}>
-          Change password
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? 'Sending...' : 'Send reset link'}
         </Button>
       </form>
       <p className="text-muted-foreground mt-4 text-center">

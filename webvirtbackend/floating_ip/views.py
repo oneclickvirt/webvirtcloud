@@ -110,7 +110,7 @@ class FloatingIPActionAPI(APIView):
         if floatip.event is not None:
             return error_message_response("The floating ip already has event.")
 
-        serializer = self.class_serializer(data=request.data, context={"floatip": floatip})
+        serializer = self.class_serializer(data=request.data, context={"floatip": floatip, "user": request.user})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)

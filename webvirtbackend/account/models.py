@@ -49,10 +49,10 @@ class User(AbstractBaseUser):
     USERNAME_FIELD = "email"
 
     def get_full_name(self):
-        return self.first_name + " " + self.last_name
+        return f"{self.first_name} {self.last_name}".strip()
 
     def get_short_name(self):
-        return self.first_name + " " + self.last_name[0]
+        return self.get_full_name() or self.email
 
     def __str__(self):
         return self.email
@@ -80,7 +80,7 @@ class User(AbstractBaseUser):
         self.save()
 
     def email_verify(self):
-        self.is_verified = True
+        self.is_email_verified = True
         self.save()
 
     def activate(self):
@@ -126,6 +126,13 @@ class Token(models.Model):
             self.key = self.generate_key()
         self.updated = timezone.now()
         return super(Token, self).save(*args, **kwargs)
+
+    def is_expired(self):
+        return self.expired is not None and self.expired < timezone.localdate()
+
+    def rotate_key(self):
+        self.key = self.generate_key()
+        self.save()
 
     def __unicode__(self):
         return self.name

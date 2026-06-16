@@ -59,13 +59,14 @@ export function FloatingIpsTable() {
       queryKey: floatingIPQueries.event(event.ip),
       queryFn: ({ signal }) => getFloatingIP({ ip: event.ip, options: { signal } }),
       refetchInterval: (query) => {
-        if (query.state.data && query.state.data.floating_ip.event === null) {
+        const data = query.state.data as { floating_ip: FloatingIP } | undefined;
+        if (data && data.floating_ip.event === null) {
           queryClient.setQueryData<FloatingIP[]>(
             floatingIPQueries.list(),
             (previousData) => {
               if (previousData) {
                 return previousData.map((floatingIP: FloatingIP) =>
-                  floatingIP.ip === event.ip ? query.state.data?.floating_ip : floatingIP,
+                  floatingIP.ip === event.ip ? data.floating_ip : floatingIP,
                 );
               }
             },

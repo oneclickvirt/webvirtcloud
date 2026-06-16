@@ -3,8 +3,8 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
-  verified: string;
-  email_verified: string;
+  verified: boolean;
+  email_verified: boolean;
   created_at: string;
   updated_at: string;
 }

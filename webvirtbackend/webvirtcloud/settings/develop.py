@@ -12,7 +12,7 @@ from .base import *
 DEBUG = True
 
 # Allowed hosts
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", [BASE_DOMAIN, f".{BASE_DOMAIN}", "localhost", "127.0.0.1"])
 
 # Application definition
 INSTALLED_APPS += [
@@ -23,13 +23,23 @@ INSTALLED_APPS += [
 ]
 
 # CORS settings
-CORS_ORIGIN_ALLOW_ALL = True
+CORS_ORIGIN_ALLOW_ALL = env_bool("DJANGO_CORS_ALLOW_ALL", False)
+CORS_ALLOWED_ORIGINS = env_list(
+    "DJANGO_CORS_ALLOWED_ORIGINS",
+    [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+)
 
 # Security settings
 SESSION_COOKIE_DOMAIN = os.environ.get("SESSION_COOKIE_DOMAIN", None)
 
 # DebugToolBar
-hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
+try:
+    hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
+except socket.gaierror:
+    ips = []
 INTERNAL_IPS = [ip[: ip.rfind(".")] + ".1" for ip in ips] + ["127.0.0.1", "localhost"]
 
 # Middleware definition

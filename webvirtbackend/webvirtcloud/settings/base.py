@@ -2,9 +2,9 @@
 Django settings for webvirtcloud project.
 """
 
+import base64
 import os
 import uuid
-import base64
 from pathlib import Path
 from celery.schedules import crontab
 from theme.crispy_forms import WEBVIRTCLOUD_CRISPY_CLASS_CONVERTERS
@@ -12,14 +12,45 @@ from theme.crispy_forms import WEBVIRTCLOUD_CRISPY_CLASS_CONVERTERS
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-8gyd_q$%c$(g$#nwqzbgaj2*(r1x8vp_l)-d+pm1+w^w9y9$v&"
+
+def env_bool(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
+def env_list(name, default=None):
+    value = os.environ.get(name)
+    if not value:
+        return default or []
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+# Base domain
+BASE_DOMAIN = os.environ.get("DOMAIN_NAME", "spiritlhl.net")
+
+# SECURITY WARNING: keep the secret key used in production secret.
+# Production settings validate that DJANGO_SECRET_KEY/SECRET_KEY is explicitly set.
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    SECRET_KEY = base64.urlsafe_b64encode(os.urandom(48)).decode()
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_bool("DJANGO_DEBUG", True)
 
 # Allowed hosts
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", [BASE_DOMAIN, f".{BASE_DOMAIN}", "localhost", "127.0.0.1"])
 
 # Authentication definition
 AUTH_USER_MODEL = "account.User"
@@ -117,7 +148,7 @@ DATABASES = {
         "CONN_MAX_AGE": 3600,
         "NAME": os.environ.get("DB_NAME", "webvirtcloud"),
         "USER": os.environ.get("DB_USER", "django"),
-        "PASSWORD": os.environ.get("DB_PASSWORD", "django"),
+        "PASSWORD": os.environ.get("DB_PASSWORD", ""),
         "HOST": os.environ.get("DB_HOST", "127.0.0.1"),
         "PORT": os.environ.get("DB_PORT", 3306),
         "OPTIONS": {
@@ -203,11 +234,11 @@ TAILWIND_CSS_PATH = "admin/css/styles.css"
 
 # Email settings
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_PORT = os.environ.get("EMAIL_PORT", 587)
+EMAIL_PORT = env_int("EMAIL_PORT", 587)
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_FROM = os.environ.get("EMAIL_FROM", "WebVirtCloud <noreply@spiritlhl.net>")
-EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", False)
-EMAIL_USE_SSL = os.environ.get("EMAIL_USE_SSL", False)
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", False)
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 
@@ -216,14 +247,11 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 #
 # Domain and URL settings
 #
-# Base domain
-BASE_DOMAIN = os.environ.get("DOMAIN_NAME", "spiritlhl.net")
-
 # Security settings
 SESSION_COOKIE_DOMAIN = os.environ.get("SESSION_COOKIE_DOMAIN", f"{BASE_DOMAIN}")
 
 # CSFR Trusted hosts
-CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", [f"https://{BASE_DOMAIN}", f"http://{BASE_DOMAIN}"])
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", [f"https://{BASE_DOMAIN}", f"http://{BASE_DOMAIN}"])
 
 #
 # Panel settings
@@ -239,39 +267,48 @@ ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", base64.urlsafe_b64encode(UNIQ_
 PUBLIC_IMAGES_URL = os.environ.get("PUBLIC_IMAGES_URL", "https://cdn.spiritlhl.net/github.com/oneclickvirt/webvirtcloud/releases/download/webvirtcloud_images/")
 
 # Compute settings
-COMPUTE_PORT = os.environ.get("COMPUTE_PORT", 8884)
+COMPUTE_PORT = env_int("COMPUTE_PORT", 8884)
 COMPUTE_VM_IMAGES_POOL = os.environ.get("COMPUTE_VM_IMAGES_POOL", "images")
-COMPUTE_CPU_RATIO_OVERCOMMIT = os.environ.get("COMPUTE_CPU_RATIO_OVERCOMMIT", 2)
-COMPUTE_MEMORY_PERCENTAGE_USAGE = os.environ.get("COMPUTE_MEMORY_PERCENTAGE_USAGE", 85)
-COMPUTE_STORAGE_PERCENTAGE_USAGE = os.environ.get("COMPUTE_STORAGE_PERCENTAGE_USAGE", 85)
+COMPUTE_CPU_RATIO_OVERCOMMIT = env_int("COMPUTE_CPU_RATIO_OVERCOMMIT", 2)
+COMPUTE_MEMORY_PERCENTAGE_USAGE = env_int("COMPUTE_MEMORY_PERCENTAGE_USAGE", 85)
+COMPUTE_STORAGE_PERCENTAGE_USAGE = env_int("COMPUTE_STORAGE_PERCENTAGE_USAGE", 85)
 
 # Virtual machine name prefix
 VM_NAME_PREFIX = os.environ.get("VM_NAME_PREFIX", "Virtance-")
 
+# Port mapping sync settings
+PORT_MAPPING_FILE = os.environ.get("PORT_MAPPING_FILE", "/etc/vm_port_mapping/mapping.txt")
+PORT_MAPPING_PUBLIC_IP = os.environ.get("PORT_MAPPING_PUBLIC_IP", "")
+PORT_MAPPING_PUBLIC_IP_ENDPOINTS = env_list(
+    "PORT_MAPPING_PUBLIC_IP_ENDPOINTS",
+    ["https://api.ipify.org", "https://ifconfig.me/ip", "https://icanhazip.com"],
+)
+PORT_MAPPING_PUBLIC_IP_TIMEOUT = env_int("PORT_MAPPING_PUBLIC_IP_TIMEOUT", 5)
+
 # Websocket settings
 WEBSOCKET_HOST = os.environ.get("WEBSOCKET_HOST", "0.0.0.0")
-WEBSOCKET_PORT = os.environ.get("WEBSOCKET_PORT", 6080)
+WEBSOCKET_PORT = env_int("WEBSOCKET_PORT", 6080)
 WEBSOCKET_CERT = os.environ.get("WEBSOCKET_CERT", None)
 
 # noVNC settings
 NOVNC_URL = os.environ.get("NOVNC_URL", f"{BASE_DOMAIN}/novnc/")
-NOVNC_PORT = os.environ.get("NOVNC_PORT", 443)
-NOVNC_PASSWD_PREFIX_LENGHT = os.environ.get("NOVNC_PASSWD_PREFIX_LENGHT", 6)
-NOVNC_PASSWD_SUFFIX_LENGHT = os.environ.get("NOVNC_PASSWD_SUFFIX_LENGHT", 12)
+NOVNC_PORT = env_int("NOVNC_PORT", 443)
+NOVNC_PASSWD_PREFIX_LENGHT = env_int("NOVNC_PASSWD_PREFIX_LENGHT", 6)
+NOVNC_PASSWD_SUFFIX_LENGHT = env_int("NOVNC_PASSWD_SUFFIX_LENGHT", 12)
 
 # Recovery image settings
 RECOVERY_ISO_NAME = os.environ.get("RECOVERY_ISO_NAME", "finnix-125.iso")
 
 # LBaaS settings
-LBAAS_IPV4_ACCESS_LIST = os.environ.get("LBAAS_IPV4_ACCESS_LIST", [])
+LBAAS_IPV4_ACCESS_LIST = env_list("LBAAS_IPV4_ACCESS_LIST", [])
 
 # Backup settings
-BACKUP_PER_MONTH = os.environ.get("BACKUP_PER_MONTH", 4)
-BACKUP_PERIOD_DAYS = os.environ.get("BACKUP_PERIOD_DAYS", 7)
-BACKUP_COST_PERCENTAGE = os.environ.get("BACKUP_COST_PERCENTAGE", 20)
+BACKUP_PER_MONTH = env_int("BACKUP_PER_MONTH", 4)
+BACKUP_PERIOD_DAYS = env_int("BACKUP_PERIOD_DAYS", 7)
+BACKUP_COST_PERCENTAGE = env_int("BACKUP_COST_PERCENTAGE", 20)
 
 # Verification settings
-VERIFICATION_ENABLED = os.environ.get("VERIFICATION_ENABLED", False)
+VERIFICATION_ENABLED = env_bool("VERIFICATION_ENABLED", False)
 
 # Registration settings
-REGISTRATION_ENABLED = os.environ.get("REGISTRATION_ENABLED", False)
+REGISTRATION_ENABLED = env_bool("REGISTRATION_ENABLED", False)

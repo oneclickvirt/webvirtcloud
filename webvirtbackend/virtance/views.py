@@ -1,5 +1,5 @@
 import time
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.conf import settings
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
@@ -13,6 +13,7 @@ from firewall.serializers import FirewallSerializer
 from image.serializers import ImageSerializer
 from image.models import Image
 from floating_ip.models import FloatIP
+from network.models import IPAddress
 from lbaas.models import LBaaSVirtance
 from firewall.models import FirewallVirtance
 from .utils import make_vnc_hash, virtance_history
@@ -24,6 +25,12 @@ from .serializers import (
     VirtanceActionSerializer,
     VirtanceHistorySerializer,
 )
+
+
+def get_virtance_compute_client(virtance):
+    if virtance.compute is None:
+        return None, error_message_response("Virtance has no compute assigned.")
+    return WebVirtCompute(virtance.compute.token, virtance.compute.hostname), None
 
 
 class VirtanceListAPI(APIView):
@@ -40,6 +47,21 @@ class VirtanceListAPI(APIView):
 
         queryset = Virtance.objects.filter(
             ~Q(event=Virtance.DELETE), type=Virtance.VIRTANCE, user=self.request.user, is_deleted=False
+        ).select_related("size", "template", "region", "compute")
+
+        queryset = queryset.prefetch_related(
+            Prefetch(
+                "ipaddress_set",
+                queryset=IPAddress.objects.filter(is_float=False).select_related("network"),
+                to_attr="prefetched_ip_addresses",
+            ),
+            Prefetch(
+                "image_set",
+                queryset=Image.objects.filter(type__in=(Image.BACKUP, Image.SNAPSHOT), is_deleted=False).only(
+                    "id", "type", "source_id"
+                ),
+                to_attr="prefetched_images",
+            ),
         )
 
         if name:
@@ -185,7 +207,9 @@ class VirtanceListAPI(APIView):
         serilizator = CreateVirtanceSerializer(data=request.data, context={"request": request})
         serilizator.is_valid(raise_exception=True)
         validated_data = serilizator.save(password=request.data.get("password"))
-        virtance = Virtance.objects.get(pk=validated_data.get("id"))
+        virtance = get_object_or_404(
+            Virtance, pk=validated_data.get("id"), type=Virtance.VIRTANCE, user=request.user, is_deleted=False
+        )
         serilizator = self.class_serializer(virtance, many=False)
         virtance_history(virtance.id, request.user.id, "virtance.create")
         return Response({"virtance": serilizator.data}, status=status.HTTP_201_CREATED)
@@ -249,7 +273,7 @@ class VirtanceActionAPI(APIView):
                     - shutdown
                     - power_on
                     - power_off
-                    - power_cyrcle
+                    - power_cycle
                     - password_reset
                     - enable_backups
                     - disable_backups
@@ -380,8 +404,12 @@ class VirtanceConsoleAPI(APIView):
         ---
         """
         virtance = self.get_object()
-        wvcomp = WebVirtCompute(virtance.compute.token, virtance.compute.hostname)
+        wvcomp, error_response = get_virtance_compute_client(virtance)
+        if error_response is not None:
+            return error_response
         res = wvcomp.get_virtance_vnc(virtance.id)
+        if res is None or res.get("detail"):
+            return error_message_response(res.get("detail") if res else "Unable to retrieve console.")
         console_host = settings.NOVNC_URL
         console_port = settings.NOVNC_PORT
         console_hash = make_vnc_hash(res.get("vnc_password"))
@@ -434,7 +462,9 @@ class VirtanceMetricsCpuAPI(APIView):
             f"(libvirt_domain_info_vcpu_num{{domain='{vname}'}}*1000000000)"
         )
 
-        wvcomp = WebVirtCompute(virtance.compute.token, virtance.compute.hostname)
+        wvcomp, error_response = get_virtance_compute_client(virtance)
+        if error_response is not None:
+            return error_response
         cpu_usr_res = wvcomp.get_metrics(cpu_usr_query, timestamp_yesterday, timestamp_today, "5m")
         cpu_sys_res = wvcomp.get_metrics(cpu_sys_query, timestamp_yesterday, timestamp_today, "5m")
         cpu_total_res = wvcomp.get_metrics(cpu_total_query, timestamp_yesterday, timestamp_today, "5m")
@@ -444,7 +474,7 @@ class VirtanceMetricsCpuAPI(APIView):
             for i, val in enumerate(user_value):
                 if float(val[1]) > 100:
                     user_value[i][1] = str(100.0)
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, TypeError):
             user_value = []
 
         try:
@@ -452,7 +482,7 @@ class VirtanceMetricsCpuAPI(APIView):
             for i, val in enumerate(sys_value):
                 if float(val[1]) > 100:
                     sys_value[i][1] = str(100.0)
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, TypeError):
             sys_value = []
 
         try:
@@ -460,7 +490,7 @@ class VirtanceMetricsCpuAPI(APIView):
             for i, val in enumerate(total_value):
                 if float(val[1]) > 100:
                     total_value[i][1] = str(100.0)
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, TypeError):
             total_value = []
 
         data = {"sys": sys_value, "user": user_value, "total": total_value}
@@ -490,12 +520,14 @@ class VirtanceMetricsMemAPI(APIView):
             f"(avg_over_time(libvirt_domain_info_memory_actual{{domain='{vname}'}}[5m])))*100"
         )
 
-        wvcomp = WebVirtCompute(virtance.compute.token, virtance.compute.hostname)
+        wvcomp, error_response = get_virtance_compute_client(virtance)
+        if error_response is not None:
+            return error_response
         mem_res = wvcomp.get_metrics(mem_query, timestamp_yesterday, timestamp_today, "5m")
 
         try:
             mem_value = mem_res["data"]["result"][0]["values"]
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, TypeError):
             mem_value = []
 
         data = mem_value
@@ -525,29 +557,31 @@ class VirtanceMetricsNetAPI(APIView):
         rx_query = f"(irate(libvirt_domain_info_net_rx_bytes{{domain='{vname}'}}[5m])*8)/1048576"
         tx_query = f"(irate(libvirt_domain_info_net_tx_bytes{{domain='{vname}'}}[5m])*8)/1048576"
 
-        wvcomp = WebVirtCompute(virtance.compute.token, virtance.compute.hostname)
+        wvcomp, error_response = get_virtance_compute_client(virtance)
+        if error_response is not None:
+            return error_response
         in_res = wvcomp.get_metrics(rx_query, timestamp_yesterday, timestamp_today, "5m")
         out_res = wvcomp.get_metrics(tx_query, timestamp_yesterday, timestamp_today, "5m")
 
         for dev in net_devs:
             try:
                 in_val[dev] = in_res["data"]["result"][dev]["values"]
-            except (KeyError, IndexError):
+            except (KeyError, IndexError, TypeError):
                 in_val[dev] = []
 
             try:
                 out_val[dev] = out_res["data"]["result"][dev]["values"]
-            except (KeyError, IndexError):
+            except (KeyError, IndexError, TypeError):
                 out_val[dev] = []
 
         return Response(
             {
                 "metrics": [
-                    {"name": "Pubic Network", "unit": "Mbps", "data": {"inbound": in_val[0], "outbound": in_val[0]}},
+                    {"name": "Public Network", "unit": "Mbps", "data": {"inbound": in_val[0], "outbound": out_val[0]}},
                     {
                         "name": "Private Network",
                         "unit": "Mbps",
-                        "data": {"inbound": out_val[1], "outbound": out_val[1]},
+                        "data": {"inbound": in_val[1], "outbound": out_val[1]},
                     },
                 ]
             }
@@ -574,18 +608,20 @@ class VirtanceMetricsDiskAPI(APIView):
         r_query = f"irate(libvirt_domain_info_block_read_bytes{{dev='vda',domain='{vname}'}}[5m])/1048576"
         w_query = f"irate(libvirt_domain_info_block_write_bytes{{dev='vda',domain='{vname}'}}[5m])/1048576"
 
-        wvcomp = WebVirtCompute(virtance.compute.token, virtance.compute.hostname)
+        wvcomp, error_response = get_virtance_compute_client(virtance)
+        if error_response is not None:
+            return error_response
         rd_res = wvcomp.get_metrics(r_query, timestamp_yesterday, timestamp_today, "5m")
         wr_res = wvcomp.get_metrics(w_query, timestamp_yesterday, timestamp_today, "5m")
 
         try:
             rd_val = rd_res["data"]["result"][0]["values"]
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, TypeError):
             rd_val = []
 
         try:
             wr_val = wr_res["data"]["result"][0]["values"]
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, TypeError):
             wr_val = []
 
         return Response({"metrics": [{"name": "Disk", "unit": "MB/s", "data": {"read": rd_val, "write": wr_val}}]})

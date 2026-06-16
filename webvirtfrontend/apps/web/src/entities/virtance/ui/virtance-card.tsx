@@ -39,6 +39,16 @@ export function VirtanceCard({ virtance, to, actions }: Props) {
     }
   }
 
+  async function copySshCommand(e: MouseEvent<HTMLButtonElement>) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    if (virtance.port_mapping?.ssh_command) {
+      await copyToClipboard(virtance.port_mapping.ssh_command);
+      toast.success('SSH command was copied to clipboard.');
+    }
+  }
+
   return (
     <div className="hover:ring-ring hover:border-ring bg-card relative flex min-h-[160px] flex-col justify-between rounded-lg border p-6 transition-all duration-300 hover:ring-1">
       <div className="flex items-start justify-between">
@@ -93,17 +103,28 @@ export function VirtanceCard({ virtance, to, actions }: Props) {
           </div>
         </div>
         
-        {/* 端口映射信息 */}
         {virtance.port_mapping && (
           <div className="flex items-center space-x-3 text-sm">
             <div className="flex items-center space-x-1">
               <LucideTerminal className="text-muted-foreground h-4 w-4" />
-              <span className="text-xs">SSH: {virtance.port_mapping.public_ip}:{virtance.port_mapping.ssh_port}</span>
+              <span className="text-xs">
+                SSH: {virtance.port_mapping.public_ip}:{virtance.port_mapping.ssh_port}
+              </span>
+              <Button
+                onClick={copySshCommand}
+                variant="ghost"
+                className="relative z-[2] h-6 w-6"
+                size="icon"
+              >
+                <LucideClipboardCopy className="h-3.5 w-3.5" />
+              </Button>
             </div>
-            <div className="flex items-center space-x-1">
-              <LucideNetwork className="text-muted-foreground h-4 w-4" />
-              <span className="text-xs">端口: {virtance.port_mapping.port_range}</span>
-            </div>
+            {virtance.port_mapping.port_range && (
+              <div className="flex items-center space-x-1">
+                <LucideNetwork className="text-muted-foreground h-4 w-4" />
+                <span className="text-xs">Ports: {virtance.port_mapping.port_range}</span>
+              </div>
+            )}
           </div>
         )}
       </div>

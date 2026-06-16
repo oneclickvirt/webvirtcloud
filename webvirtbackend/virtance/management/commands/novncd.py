@@ -21,14 +21,14 @@ def get_console_connection(uuid):
 
     if virtance is None or virtance.compute is None:
         logging.error(f"Fail to retrieve console connection info for UUID {uuid}: compute not found")
-        raise
+        raise ValueError("Console compute not found")
 
     wvcomp = WebVirtCompute(virtance.compute.token, virtance.compute.hostname)
     res = wvcomp.get_virtance_vnc(virtance.id)
 
     if res.get("detail") is not None:
         logging.error(f"Fail to retrieve console connection info for UUID {uuid}: {res.get('detail')}")
-        raise
+        raise ValueError(res.get("detail"))
 
     port = res.get("vnc_port")
     host = virtance.compute.hostname

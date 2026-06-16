@@ -86,9 +86,9 @@ export function LoadbalancerAttachVirtanceDialog({
     }
   });
 
-  function onCheckedChange(checked: boolean, id: string) {
+  function onCheckedChange(checked: boolean | 'indeterminate', id: number) {
     const value = getValues();
-    if (checked) {
+    if (checked === true) {
       setValue('ids', [...value.ids, id]);
     } else {
       setValue(
@@ -150,7 +150,7 @@ export function LoadbalancerAttachVirtanceDialog({
                     id={`virtance-add-${virtance.id}`}
                     onCheckedChange={(checked) => onCheckedChange(checked, virtance.id)}
                     value={virtance.id}
-                    checked={attachedVirtancesIds?.includes(virtance.id)}
+                    checked={attachedVirtancesIds?.includes(virtance.id) || ids.includes(virtance.id)}
                     disabled={attachedVirtancesIds?.includes(virtance.id)}
                     className="h-5 w-5"
                   />

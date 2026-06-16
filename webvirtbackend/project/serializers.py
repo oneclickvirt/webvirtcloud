@@ -29,11 +29,11 @@ class ProjectSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = validated_data.get("user")
         name = validated_data.get("name")
-        default = validated_data.get("is_default")
+        default = validated_data.get("is_default", False)
         description = validated_data.get("description")
 
         if default is True:
-            Project.objects.filter(user=user).update(is_default=False)
+            Project.objects.filter(user=user, is_deleted=False).update(is_default=False)
 
         project = Project.objects.create(
             user=user,
@@ -50,7 +50,7 @@ class ProjectSerializer(serializers.ModelSerializer):
         description = validated_data.get("description", instance.description)
 
         if default is True:
-            Project.objects.filter(user=instance.user).update(is_default=False)
+            Project.objects.filter(user=instance.user, is_deleted=False).update(is_default=False)
 
         instance.name = name
         instance.is_default = default

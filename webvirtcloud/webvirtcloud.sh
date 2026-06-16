@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 cat << "EOF"
  __        __   _  __     ___      _    ____ _                 _ 
  \ \      / ___| |_\ \   / (_)_ __| |_ / ___| | ___  _   _  __| |
@@ -12,13 +15,14 @@ EOF
 
 # Define minimum Docker version
 MIN_DOCKER_VERSION="25.0.0"
-DOCKER_VERSION=$(docker --version | awk '{print $3}' | sed 's/,//')
 
 # Check if Docker is installed
 if ! command -v docker &> /dev/null; then
     echo -e "\nDocker not found! Please install Docker first.\n"
     exit 1
 fi
+
+DOCKER_VERSION=$(docker --version | awk '{print $3}' | sed 's/,//')
 
 # Check docker version function
 check_docker_version() {
@@ -51,108 +55,225 @@ elif command -v docker-compose > /dev/null 2>&1; then
     DOCKER_COMPOSE_COMMAND="docker-compose"
 else
     echo "Neither 'docker compose' nor 'docker-compose' command found."
+    echo "未找到 'docker compose' 或 'docker-compose' 命令。"
     exit 1
 fi
 
+function say() {
+    echo "$1"
+    echo "$2"
+}
+
+function generate_secret() {
+    local bytes="${1:-32}"
+    if command -v openssl >/dev/null 2>&1; then
+        openssl rand -hex "$bytes"
+    else
+        python3 -c "import secrets; print(secrets.token_hex(${bytes}))"
+    fi
+}
+
+function read_env_value() {
+    local key="$1"
+    if [ -f env.local ]; then
+        awk -F= -v key="$key" '$1 == key {sub(/^[^=]*=/, ""); print; exit}' env.local
+    fi
+}
+
+function set_env_value() {
+    local key="$1"
+    local value="$2"
+    if grep -q "^${key}=" env.local 2>/dev/null; then
+        sed -i "s|^${key}=.*|${key}=${value}|" env.local
+    else
+        echo "${key}=${value}" >> env.local
+    fi
+}
+
+function is_placeholder_value() {
+    local value="$1"
+    [ -z "$value" ] || [[ "$value" == change-me* ]] || [[ "$value" == *generate-with* ]]
+}
+
+function ensure_env_value() {
+    local key="$1"
+    local value="$2"
+    local current_value
+    current_value="$(read_env_value "$key")"
+    if is_placeholder_value "$current_value"; then
+        set_env_value "$key" "$value"
+    fi
+}
+
+function ensure_runtime_env() {
+    touch env.local
+
+    local domain_name
+    domain_name="$(read_env_value DOMAIN_NAME)"
+    if [ -z "$domain_name" ]; then
+        domain_name="localhost"
+        set_env_value DOMAIN_NAME "$domain_name"
+    fi
+
+    ensure_env_value DJANGO_SECRET_KEY "$(generate_secret 48)"
+    ensure_env_value MARIADB_PASSWORD "$(generate_secret 24)"
+    ensure_env_value MARIADB_ROOT_PASSWORD "$(generate_secret 24)"
+    ensure_env_value RABBITMQ_DEFAULT_PASS "$(generate_secret 24)"
+    ensure_env_value DB_PASSWORD "$(read_env_value MARIADB_PASSWORD)"
+    ensure_env_value CELERY_BROKER_URL "amqp://django:$(read_env_value RABBITMQ_DEFAULT_PASS)@rabbitmq:5672//webvirtcloud"
+    ensure_env_value DJANGO_ALLOWED_HOSTS "$domain_name,localhost,127.0.0.1,backend"
+    ensure_env_value CSRF_TRUSTED_ORIGINS "https://${domain_name},http://${domain_name}"
+    ensure_env_value WEBVIRT_ADMIN_EMAIL "admin@spiritlhl.net"
+    ensure_env_value WEBVIRT_ADMIN_PASSWORD "$(generate_secret 18)"
+}
+
+function wait_for_backend() {
+    say "Waiting for backend to be ready..." "等待后端服务就绪..."
+    for _ in $(seq 1 60); do
+        if $DOCKER_COMPOSE_COMMAND exec -T backend python manage.py check >/dev/null 2>&1; then
+            say "Backend is ready." "后端服务已就绪。"
+            return 0
+        fi
+        sleep 2
+    done
+
+    say "Backend did not become ready in time." "后端服务未在限定时间内就绪。"
+    exit 1
+}
+
 # Start docker compose
 function start_webvirtcloud() {
-    ININT_DB=false
+    INIT_DB=false
 
     # Check if env.local exists
     if [ ! -f env.local ]; then
-        echo "File env.local not found!"
-        echo -e "\nRun '$0 env' first\n"
-        exit 1
+        say "File env.local not found; creating a secure default env.local." "未找到 env.local，将创建安全的默认配置。"
     fi
+    ensure_runtime_env
 
-    # Check submodules
-    if [ -z "$(ls -A "webvirtbackend")" ]; then
-        init_submodules
-    fi
+    ensure_source_tree
 
     # Check if .mysql directory exists
-    if [ ! -d ".mysql" ]; then
-        ININT_DB=true
+    if [ ! -d ".mysql/mysql" ]; then
+        INIT_DB=true
     fi
     
-    echo "Building WebVirtCloud frontend..."
+    say "Building WebVirtCloud frontend..." "正在构建 WebVirtCloud 前端..."
     $DOCKER_COMPOSE_COMMAND build frontend --no-cache
 
-    echo "Building WebVirtCloud backend..."
+    say "Building WebVirtCloud backend..." "正在构建 WebVirtCloud 后端..."
     $DOCKER_COMPOSE_COMMAND build backend --no-cache
     
-    echo "Start WebVirtCloud..."
+    say "Start WebVirtCloud..." "正在启动 WebVirtCloud..."
     $DOCKER_COMPOSE_COMMAND up -d
     
     # Init database
-    if [ "$ININT_DB" = true ]; then
+    if [ "$INIT_DB" = true ]; then
+        wait_for_backend
         create_default_admin
-        load_initial_data
     fi
 }
 
 function create_default_admin() {
-    echo "Creating 'admin@spiritlhl.net' user..."
-    $DOCKER_COMPOSE_COMMAND exec backend python manage.py loaddata account/fixtures/admin.json
+    ensure_runtime_env
+    local admin_email
+    local admin_password
+    admin_email="$(read_env_value WEBVIRT_ADMIN_EMAIL)"
+    admin_password="$(read_env_value WEBVIRT_ADMIN_PASSWORD)"
+
+    say "Loading initial data and creating initial admin user..." "正在加载初始数据并创建初始管理员用户..."
+    $DOCKER_COMPOSE_COMMAND exec -T \
+        -e WEBVIRT_ADMIN_EMAIL="$admin_email" \
+        -e WEBVIRT_ADMIN_PASSWORD="$admin_password" \
+        backend python manage.py first_init_data
+    echo "Admin email / 管理员邮箱: $admin_email"
+    echo "Admin password / 管理员密码: $admin_password"
 }
 
 # Load initial data
 function load_initial_data() {
-    echo "Loading initial data..."
-    $DOCKER_COMPOSE_COMMAND exec backend python manage.py loaddata initial_data
+    say "Loading initial data..." "正在加载初始数据..."
+    wait_for_backend
+    $DOCKER_COMPOSE_COMMAND exec -T backend python manage.py loaddata initial_data
 }
 
 # Init and update submodules
 function init_submodules() {
-    echo "Init submodules..."
+    say "Init submodules..." "正在初始化子模块..."
     git submodule update --init --recursive
+}
+
+function ensure_source_tree() {
+    if [ ! -d "../webvirtbackend" ] || [ ! -d "../webvirtfrontend" ]; then
+        say "Required sibling source directories ../webvirtbackend and ../webvirtfrontend were not found." "未找到必需的同级源码目录 ../webvirtbackend 和 ../webvirtfrontend。"
+        say "Run this script from the webvirtcloud/ directory of the full repository checkout." "请在完整仓库检出的 webvirtcloud/ 目录中运行此脚本。"
+        exit 1
+    fi
 }
 
 # Restart docker compose
 function restart_webvirtcloud() {
-    echo "Restarting WebVirtCloud..."
+    say "Restarting WebVirtCloud..." "正在重启 WebVirtCloud..."
     $DOCKER_COMPOSE_COMMAND restart
 }
 
 # Stop docker compose
 function stop_webvirtcloud() {
-    echo "Stop WebVirtCloud..."
+    say "Stop WebVirtCloud..." "正在停止 WebVirtCloud..."
     $DOCKER_COMPOSE_COMMAND down
+}
+
+function uninstall_webvirtcloud() {
+    say "Uninstalling WebVirtCloud containers..." "正在卸载 WebVirtCloud 容器..."
+    if [ "${WEBVIRT_UNINSTALL_DELETE_VOLUMES:-false}" = "true" ]; then
+        say "WEBVIRT_UNINSTALL_DELETE_VOLUMES=true; removing containers, local images, and volumes." "检测到 WEBVIRT_UNINSTALL_DELETE_VOLUMES=true，将删除容器、本地镜像和卷。"
+        $DOCKER_COMPOSE_COMMAND down -v --rmi local
+    else
+        say "Preserving volumes. Set WEBVIRT_UNINSTALL_DELETE_VOLUMES=true to remove database volumes too." "将保留数据卷。如需同时删除数据库卷，请设置 WEBVIRT_UNINSTALL_DELETE_VOLUMES=true。"
+        $DOCKER_COMPOSE_COMMAND down --rmi local
+    fi
 }
 
 # Pull latest changes
 function git_pull() {
-    echo "Pulling latest changes..."
+    say "Pulling latest changes..." "正在拉取最新代码..."
     git pull
     git submodule update
 }
 
-# Add base domain to custom.env
+# Add base domain to env.local
 function add_to_custom_env() {
-    echo -e "Enter your domain or IP address (only HTTP). Default: localhost"
-    read -p "Enter: " DOMAIN_NAME
+    echo -e "Enter your domain or IP address. Default: localhost"
+    echo -e "请输入域名或 IP 地址。默认: localhost"
+    read -p "Enter / 输入: " DOMAIN_NAME
     if [ -z "$DOMAIN_NAME" ]; then
         DOMAIN_NAME="localhost"
     fi
-    echo "DOMAIN_NAME=${DOMAIN_NAME}" > env.local
-    echo -e "\nDomain: '"${DOMAIN_NAME}"' added to env.local\n"
+    touch env.local
+    set_env_value DOMAIN_NAME "$DOMAIN_NAME"
+    echo -e "\nDomain / 域名: '"${DOMAIN_NAME}"' added to env.local\n"
+    ensure_runtime_env
 
-    echo -e "Do you want to enable show prices in sizes on client side? (yes/no). Default: no"
-    read -p "Enter: " ENABLE_PRICE
+    echo -e "Do you want to show prices in sizes on the client side? (yes/no). Default: no"
+    echo -e "是否在客户端规格列表显示价格？(yes/no)。默认: no"
+    read -p "Enter / 输入: " ENABLE_PRICE
     if [ "$ENABLE_PRICE" = "yes" ]; then
-        echo "VITE_DISPLAY_PRICES=true" >> env.local
-        echo -e "\nShow prices enabled on client side\n"
+        set_env_value VITE_DISPLAY_PRICES true
+        echo -e "\nShow prices enabled on client side / 已启用客户端价格显示\n"
     else
-        echo -e "\nShow prices is not enabled on client side\n"
+        set_env_value VITE_DISPLAY_PRICES false
+        echo -e "\nShow prices is not enabled on client side / 未启用客户端价格显示\n"
     fi
 
     echo -e "Do you want to enable Load Balancer features on client side? (yes/no). Default: no"
-    read -p "Enter: " ENABLE_LB
+    echo -e "是否启用客户端负载均衡功能？(yes/no)。默认: no"
+    read -p "Enter / 输入: " ENABLE_LB
     if [ "$ENABLE_LB" = "yes" ]; then
-        echo "VITE_LOADBALANCER=true" >> env.local
-        echo -e "\nLoad Balancer enabled on client side\n"
+        set_env_value VITE_LOADBALANCER true
+        echo -e "\nLoad Balancer enabled on client side / 已启用客户端负载均衡功能\n"
     else
-        echo -e "\nLoad Balancer is not enabled on client side\n"
+        set_env_value VITE_LOADBALANCER false
+        echo -e "\nLoad Balancer is not enabled on client side / 未启用客户端负载均衡功能\n"
     fi
 }
 
@@ -160,14 +281,24 @@ function add_to_custom_env() {
 function show_help() {
 cat << "EOF"
 Available commands:
+可用命令:
 
-env             Configure custom.env
+env             Configure env.local
+env             配置 env.local
 start           Start WebVirtCloud
+start           启动 WebVirtCloud
 restart         Restart WebVirtCloud
+restart         重启 WebVirtCloud
 stop            Stop WebVirtCloud
+stop            停止 WebVirtCloud
+uninstall       Remove containers and local images; preserves volumes by default
+uninstall       删除容器和本地镜像；默认保留数据卷
 update          Update WebVirtCloud
+update          更新 WebVirtCloud
 loaddata        Load initial data
+loaddata        加载初始数据
 help            Show this message
+help            显示帮助信息
 
 EOF
 }
@@ -186,6 +317,9 @@ case "$1" in
     "stop")
         stop_webvirtcloud
         ;;
+    "uninstall")
+        uninstall_webvirtcloud
+        ;;
     "update")
         stop_webvirtcloud
         git_pull
@@ -198,7 +332,7 @@ case "$1" in
         restart_webvirtcloud
         ;;
     *)
-        echo "No command found."
+        say "No command found." "未找到命令。"
         echo
         show_help
         ;;

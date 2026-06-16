@@ -66,14 +66,14 @@ def decrypt_data(data, key=None):
 
 def check_ssh_auth(hostname, password=None, private_key=None, username="root", timeout=180):
     pkey = None
-    elapsed_time = 0
+    deadline = time.monotonic() + timeout
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     if private_key:
         pkey = paramiko.RSAKey.from_private_key(StringIO(private_key))
 
-    while elapsed_time < timeout:
+    while time.monotonic() < deadline:
         try:
             ssh.connect(
                 hostname=hostname,
@@ -82,6 +82,9 @@ def check_ssh_auth(hostname, password=None, private_key=None, username="root", t
                 pkey=pkey,
                 allow_agent=False,
                 look_for_keys=False,
+                timeout=5,
+                auth_timeout=5,
+                banner_timeout=5,
             )
             return True
         except Exception:
@@ -94,25 +97,24 @@ def check_ssh_auth(hostname, password=None, private_key=None, username="root", t
 
 
 def check_ssh_connect(host, password=None, private_key=None, port=22, timeout=180):
-    elapsed_time = 0
-    while elapsed_time < timeout:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
         try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.connect((host, port))
-            if check_ssh_auth(host, password=password, private_key=private_key):
+            with socket.create_connection((host, port), timeout=5):
+                pass
+
+            remaining = max(1, int(deadline - time.monotonic()))
+            if check_ssh_auth(host, password=password, private_key=private_key, timeout=min(remaining, 10)):
                 return True
         except socket.error:
-            time.sleep(1)
-            elapsed_time += 1
-
-        finally:
-            sock.close()
+            pass
+        time.sleep(1)
 
     return False
 
 
 def make_vnc_hash(vnc_password, prefix_length=NOVNC_PASSWD_PREFIX, suffix_length=NOVNC_PASSWD_SUFFIX):
-    return b64encode((f"{make_passwd(prefix_length)}{vnc_password}{make_passwd(suffix_length)}").encode())
+    return b64encode((f"{make_passwd(prefix_length)}{vnc_password}{make_passwd(suffix_length)}").encode()).decode()
 
 
 def virtance_history(virtance_id, user_id, event, message=None):

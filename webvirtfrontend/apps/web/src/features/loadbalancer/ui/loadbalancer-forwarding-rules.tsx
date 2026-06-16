@@ -28,28 +28,14 @@ function LoadbalancerForwardingRule({
   const entryProtocol = watch(`forwarding_rules.${index}.entry_protocol`);
 
   const targetProtocolOptions = useMemo(() => {
-    switch (entryProtocol) {
-      case 'http':
-      case 'https':
-        return ['http', 'https'];
-      case 'http2':
-        return ['http', 'http2'];
-      case 'http3':
-        return ['http', 'https', 'http2'];
-      case 'tcp':
-        return ['tcp'];
-      case 'udp':
-        return ['udp'];
-      default:
-        return [];
-    }
+    return entryProtocol ? [entryProtocol] : [];
   }, [entryProtocol]);
 
   useEffect(() => {
     if (targetProtocolOptions.length) {
       setValue(`forwarding_rules.${index}.target_protocol`, targetProtocolOptions[0]);
     }
-  }, [targetProtocolOptions]);
+  }, [index, setValue, targetProtocolOptions]);
 
   return (
     <tr className="align-top">

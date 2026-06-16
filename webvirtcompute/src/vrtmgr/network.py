@@ -85,8 +85,11 @@ class FloatingIP(object):
         if self.add_iface_addr(float_addr, nmc, dev, prefix=float_pref):
             if not fwd.is_locked():
                 fwd.set_state()
-                self.add_fw_rule(fwd)
-                self.clear_iface_arp(float_addr, float_gw, dev)
+                try:
+                    self.add_fw_rule(fwd)
+                    self.clear_iface_arp(float_addr, float_gw, dev)
+                finally:
+                    fwd.unset_state()
             else:
                 self.remove_iface_addr(nmc, float_addr, dev, prefix=float_pref)
                 raise IPRedirectError(f"Firewall closed connection by timeout {FIREWALLD_STATE_TIMEOUT}sec.")
@@ -97,7 +100,10 @@ class FloatingIP(object):
         if self.remove_iface_addr(nmc, float_addr, dev, prefix=float_pref):
             if not fwd.is_locked():
                 fwd.set_state()
-                self.remove_fw_rule(fwd)
+                try:
+                    self.remove_fw_rule(fwd)
+                finally:
+                    fwd.unset_state()
             else:
                 self.add_iface_addr(float_addr, nmc, dev, prefix=float_pref)
                 raise IPRedirectError(f"Firewall closed connection by timeout {FIREWALLD_STATE_TIMEOUT}sec.")

@@ -2,8 +2,8 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ..
+      dockerfile: webvirtcloud/Dockerfile.frontend
     image: webvirtcloud:frontend
     container_name: webvirtcloud-frontend
     hostname: frontend
@@ -12,16 +12,28 @@ services:
       - 443:443
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./.caddy/certs:/etc/caddy/certs:ro
       - caddy_data:/data
       - caddy_config:/config
     env_file:
       - env.common
       - env.local
+    healthcheck:
+      test: [ "CMD-SHELL", "pidof caddy >/dev/null" ]
+      start_period: 30s
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      backend:
+        condition: service_healthy
+      novnc:
+        condition: service_healthy
 
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile.backend
+      context: ..
+      dockerfile: webvirtcloud/Dockerfile.backend
     image: webvirtcloud:backend
     container_name: webvirtcloud-backend
     hostname: backend
@@ -34,6 +46,12 @@ services:
         condition: service_completed_successfully
       mariadb:
         condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=5)\"" ]
+      start_period: 1m
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   backend_db_migration:
     image: webvirtcloud:backend
@@ -57,6 +75,14 @@ services:
     depends_on:
       mariadb:
         condition: service_healthy
+      backend_db_migration:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [ "CMD-SHELL", "python3 -c \"import socket; s=socket.create_connection(('127.0.0.1', 6080), 5); s.close()\"" ]
+      start_period: 30s
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   worker:
     image: webvirtcloud:backend
@@ -89,6 +115,12 @@ services:
     env_file:
       - env.common
       - env.local
+    healthcheck:
+      test: [ "CMD-SHELL", "python3 -c \"import os; os.kill(1, 0)\"" ]
+      start_period: 30s
+      interval: 1m
+      timeout: 5s
+      retries: 3
     depends_on:
       backend_db_migration:
         condition: service_completed_successfully

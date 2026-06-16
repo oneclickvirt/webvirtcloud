@@ -59,12 +59,12 @@ class ImageSerializer(serializers.ModelSerializer):
     def get_min_disk_size(self, obj):
         if obj.type == obj.DISTRIBUTION or obj.type == obj.APPLICATION:
             return 0
-        return obj.disk_size // 1073741824
+        return (obj.disk_size or 0) // 1073741824
 
     def get_size_gigabytes(self, obj):
         if obj.type == obj.DISTRIBUTION or obj.type == obj.APPLICATION:
             return 0
-        return round(obj.file_size / 1073741824, 2)
+        return round((obj.file_size or 0) / 1073741824, 2)
 
     def validate(self, attrs):
         if attrs.get("name") is None:
@@ -185,6 +185,8 @@ class SnapshotsSerializer(serializers.ModelSerializer):
         return {"name": obj.event, "description": next((i[1] for i in obj.EVENT_CHOICES if i[0] == obj.event))}
 
     def get_virtance_id(self, obj):
+        if obj.source is None:
+            return None
         if obj.source.is_deleted is True:
             return None
         return obj.source.id
@@ -197,9 +199,9 @@ class SnapshotsSerializer(serializers.ModelSerializer):
     def get_min_disk_size(self, obj):
         if obj.type == obj.DISTRIBUTION or obj.type == obj.APPLICATION:
             return 0
-        return obj.disk_size // 1073741824
+        return (obj.disk_size or 0) // 1073741824
 
     def get_size_gigabytes(self, obj):
         if obj.type == obj.DISTRIBUTION or obj.type == obj.APPLICATION:
             return 0
-        return round(obj.file_size / 1073741824, 2)
+        return round((obj.file_size or 0) / 1073741824, 2)

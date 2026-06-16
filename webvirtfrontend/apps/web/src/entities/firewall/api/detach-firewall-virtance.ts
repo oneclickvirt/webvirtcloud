@@ -5,6 +5,6 @@ export const detachFirewallVirtance = (
   payload: {
     virtance_ids: number[];
   },
-): Promise<unknown> => {
-  return request.delete(`firewalls/${uuid}/virtances`, { json: { ...payload } }).json();
+): Promise<void> => {
+  return request.delete(`firewalls/${uuid}/virtances`, { json: { ...payload } }).then(() => undefined);
 };

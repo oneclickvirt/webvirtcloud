@@ -1,0 +1,40 @@
+# Local environment and secrets
+.env
+.env.*
+env.local
+*.env
+!.env.example
+!**/.env.example
+*.pem
+*.key
+*.crt
+
+# Runtime data
+*.db
+*.sqlite3
+*.sqlite3-journal
+.mysql/
+result.json
+screenshots/
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+.turbo/
+webvirtfrontend/apps/email/build_production/promotional.html
+webvirtfrontend/apps/email/build_production/images/maizzle.png
+
+# System/editor
+.DS_Store
+.idea/
+.vscode/

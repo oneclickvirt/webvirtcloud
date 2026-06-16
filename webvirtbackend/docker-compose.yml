@@ -17,14 +17,24 @@ services:
       DB_PORT: 3306
       DB_NAME: webvirtcloud
       DB_USER: django
-      DB_PASSWORD: django
+      DB_PASSWORD: ${WEBVIRT_DEV_DB_PASSWORD:?Set WEBVIRT_DEV_DB_PASSWORD for development compose}
       PYTHONOPTIMIZE: 1
       ANSIBLE_HOST_KEY_CHECKING: 0
       ANSIBLE_PARAMIKO_LOOK_FOR_KEYS: 0
       DJANGO_SETTINGS_MODULE: webvirtcloud.settings.develop
-      CELERY_BROKER_URL: "amqp://guest:guest@rabbitmq:5672"
+      CELERY_BROKER_URL: "amqp://guest:${WEBVIRT_DEV_RABBITMQ_PASSWORD:?Set WEBVIRT_DEV_RABBITMQ_PASSWORD for development compose}@rabbitmq:5672"
+      PORT_MAPPING_FILE: ${PORT_MAPPING_FILE:-/etc/vm_port_mapping/mapping.txt}
+      PORT_MAPPING_PUBLIC_IP: ${PORT_MAPPING_PUBLIC_IP:-}
+      PORT_MAPPING_PUBLIC_IP_TIMEOUT: ${PORT_MAPPING_PUBLIC_IP_TIMEOUT:-5}
     depends_on:
-      - mariadb
+      mariadb:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=5)\"" ]
+      start_period: 30s
+      interval: 30s
+      timeout: 10s
+      retries: 3
   
   novnc:
     image: webvirtbackend:dev
@@ -40,10 +50,17 @@ services:
       DB_PORT: 3306
       DB_NAME: webvirtcloud
       DB_USER: django
-      DB_PASSWORD: django
+      DB_PASSWORD: ${WEBVIRT_DEV_DB_PASSWORD:?Set WEBVIRT_DEV_DB_PASSWORD for development compose}
       DJANGO_SETTINGS_MODULE: webvirtcloud.settings.develop
     depends_on:
-      - mariadb
+      mariadb:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "python3 -c \"import socket; s=socket.create_connection(('127.0.0.1', 6080), 5); s.close()\"" ]
+      start_period: 30s
+      interval: 30s
+      timeout: 10s
+      retries: 3
   
   worker:
     image: webvirtbackend:dev
@@ -57,15 +74,23 @@ services:
       DB_PORT: 3306
       DB_NAME: webvirtcloud
       DB_USER: django
-      DB_PASSWORD: django
+      DB_PASSWORD: ${WEBVIRT_DEV_DB_PASSWORD:?Set WEBVIRT_DEV_DB_PASSWORD for development compose}
       PYTHONOPTIMIZE: 1
       ANSIBLE_HOST_KEY_CHECKING: 0
       ANSIBLE_PARAMIKO_LOOK_FOR_KEYS: 0
       DJANGO_SETTINGS_MODULE: webvirtcloud.settings.develop
-      CELERY_BROKER_URL: "amqp://guest:guest@rabbitmq:5672"
+      CELERY_BROKER_URL: "amqp://guest:${WEBVIRT_DEV_RABBITMQ_PASSWORD:?Set WEBVIRT_DEV_RABBITMQ_PASSWORD for development compose}@rabbitmq:5672"
     depends_on:
-      - mariadb
-      - rabbitmq
+      mariadb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "celery", "inspect", "ping" ]
+      start_period: 1m
+      interval: 1m
+      timeout: 5s
+      retries: 3
   
   scheduler:
     image: webvirtbackend:dev
@@ -79,15 +104,24 @@ services:
       DB_PORT: 3306
       DB_NAME: webvirtcloud
       DB_USER: django
-      DB_PASSWORD: django
+      DB_PASSWORD: ${WEBVIRT_DEV_DB_PASSWORD:?Set WEBVIRT_DEV_DB_PASSWORD for development compose}
       ANSIBLE_HOST_KEY_CHECKING: 0
       ANSIBLE_PARAMIKO_LOOK_FOR_KEYS: 0
       DJANGO_SETTINGS_MODULE: webvirtcloud.settings.develop
-      CELERY_BROKER_URL: "amqp://guest:guest@rabbitmq:5672"
+      CELERY_BROKER_URL: "amqp://guest:${WEBVIRT_DEV_RABBITMQ_PASSWORD:?Set WEBVIRT_DEV_RABBITMQ_PASSWORD for development compose}@rabbitmq:5672"
     depends_on:
-      - worker
-      - mariadb
-      - rabbitmq
+      worker:
+        condition: service_healthy
+      mariadb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "python3 -c \"import os; os.kill(1, 0)\"" ]
+      start_period: 30s
+      interval: 1m
+      timeout: 5s
+      retries: 3
   
   mariadb:
     image: mariadb:10.6.10
@@ -100,8 +134,14 @@ services:
     environment:
       MARIADB_DATABASE: webvirtcloud
       MARIADB_USER: django
-      MARIADB_PASSWORD: django
-      MARIADB_ROOT_PASSWORD: root
+      MARIADB_PASSWORD: ${WEBVIRT_DEV_DB_PASSWORD:?Set WEBVIRT_DEV_DB_PASSWORD for development compose}
+      MARIADB_ROOT_PASSWORD: ${WEBVIRT_DEV_DB_ROOT_PASSWORD:?Set WEBVIRT_DEV_DB_ROOT_PASSWORD for development compose}
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--su-mysql", "--connect", "--innodb_initialized" ]
+      start_period: 1m
+      interval: 1m
+      timeout: 5s
+      retries: 3
   
   rabbitmq:
     image: rabbitmq:3.10.13
@@ -109,7 +149,13 @@ services:
     hostname: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_PASS: ${WEBVIRT_DEV_RABBITMQ_PASSWORD:?Set WEBVIRT_DEV_RABBITMQ_PASSWORD for development compose}
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      start_period: 1m
+      interval: 30s
+      timeout: 30s
+      retries: 3
   
   cloudinit-proxy:
     image: haproxy:lts

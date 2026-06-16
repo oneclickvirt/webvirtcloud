@@ -385,10 +385,11 @@ class LBaaSVirtancesAPI(APIView):
         List All Virtances Attached to The Load Balancer
         ---
         """
+        lbaas = self.get_object()
         virtance_ids = LBaaSVirtance.objects.filter(
-            lbaas=self.get_object(), virtance__is_deleted=False, is_deleted=False
+            lbaas=lbaas, virtance__user=request.user, virtance__is_deleted=False, is_deleted=False
         ).values_list("virtance_id", flat=True)
-        virtances = Virtance.objects.filter(id__in=virtance_ids)
+        virtances = Virtance.objects.filter(id__in=virtance_ids, user=request.user, is_deleted=False)
         serilizator = VirtanceSerializer(virtances, many=True)
         return Response({"virtances": serilizator.data})
 

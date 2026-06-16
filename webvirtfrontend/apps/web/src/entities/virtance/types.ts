@@ -72,7 +72,7 @@ export type Virtance = {
   port_mapping?: {
     public_ip: string;
     ssh_port: number;
-    port_range: string;
+    port_range: string | null;
     ssh_command: string;
   } | null;
 };
@@ -82,6 +82,7 @@ export type VirtanceStatus = 'active' | 'pending' | 'inactive';
 export type VirtanceAction =
   | 'power_on'
   | 'power_off'
+  | 'power_cycle'
   | 'rename'
   | 'shutdown'
   | 'reset'
@@ -99,6 +100,10 @@ export type ActionType =
   | {
       id: number;
       action: 'power_off';
+    }
+  | {
+      id: number;
+      action: 'power_cycle';
     }
   | {
       id: number;

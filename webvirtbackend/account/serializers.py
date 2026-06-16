@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 
 from .models import User, Token
-from .tasks import email_confirm_register
+from .tasks import email_confirm_register, email_reset_password
 
 
 class AuthTokenSerializer(serializers.Serializer):
@@ -72,6 +72,7 @@ class ResetPasswordSerializer(serializers.Serializer):
         try:
             user = User.objects.get(email=email)
             user.update_hash()
+            email_reset_password.delay(user.email, user.hash)
         except User.DoesNotExist:
             pass
 
@@ -104,13 +105,13 @@ class ResetPasswordHashSerializer(serializers.Serializer):
         password = validated_data.get("password")
 
         if instance is None:
-            serializers.ValidationError("Hash is incorrect or your account is not activated")
+            raise serializers.ValidationError("Hash is incorrect or your account is not activated")
 
         instance.set_password(password)
         instance.update_hash()
 
-        token = Token.objects.get(is_obtained=True, user=instance)
-        token.generate_key()
+        for token in Token.objects.filter(is_obtained=True, user=instance):
+            token.rotate_key()
 
         return validated_data
 
@@ -179,8 +180,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         instance.set_password(new_password)
         instance.save()
 
-        token = Token.objects.get(is_obtained=True, user=instance)
-        token.key = token.generate_key()
-        token.save()
+        for token in Token.objects.filter(is_obtained=True, user=instance):
+            token.rotate_key()
 
         return instance

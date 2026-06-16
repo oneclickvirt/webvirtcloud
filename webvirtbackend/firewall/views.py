@@ -24,7 +24,11 @@ class FirewallListAPI(APIView):
         queryset = Firewall.objects.filter(user=self.request.user, is_deleted=False)
 
         if virtance_id and virtance_id.isdigit():
-            firewallvirtance = FirewallVirtance.objects.filter(virtance_id=virtance_id).first()
+            firewallvirtance = FirewallVirtance.objects.filter(
+                virtance_id=virtance_id,
+                virtance__user=self.request.user,
+                virtance__is_deleted=False,
+            ).first()
             queryset = queryset.filter(id=firewallvirtance.firewall.id) if firewallvirtance else []
 
         return queryset
@@ -179,7 +183,7 @@ class FirewallDataAPI(APIView):
                               type: string
                               description: IPv4 address or CIDR
         """
-        serilizator = self.class_serializer(self.get_object(), data=request.data)
+        serilizator = self.class_serializer(self.get_object(), data=request.data, context={"user": request.user})
         serilizator.is_valid(raise_exception=True)
         serilizator.save()
         return Response({"firewall": serilizator.data})
@@ -190,16 +194,26 @@ class FirewallDataAPI(APIView):
         ---
         """
         firewall = self.get_object()
+        links = FirewallVirtance.objects.filter(firewall=firewall)
 
-        for fw_to_virt in FirewallVirtance.objects.filter(firewall=firewall):
-            firewall.event = Firewall.DELETE
-            firewall.save()
-            virtance = Virtance.objects.get(id=fw_to_virt.virtance.id)
+        if not links.exists():
+            firewall.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        firewall.event = Firewall.DELETE
+        firewall.save()
+
+        for fw_to_virt in links:
+            virtance = Virtance.objects.filter(id=fw_to_virt.virtance_id, user=firewall.user, is_deleted=False).first()
+            if virtance is None:
+                fw_to_virt.delete()
+                continue
             virtance.event = Virtance.FIREWALL_DETACH
             virtance.save()
             firewall_detach.delay(firewall.id, virtance.id)
 
-        firewall.delete()
+        if not FirewallVirtance.objects.filter(firewall=firewall).exists():
+            firewall.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -326,8 +340,11 @@ class FirewallVirtanceAPI(APIView):
         List All Attached Virtances To The Firewall
         ---
         """
-        virtance_ids = FirewallVirtance.objects.filter(firewall=self.get_object()).values_list("virtance_id", flat=True)
-        virtances = Virtance.objects.filter(id__in=virtance_ids)
+        firewall = self.get_object()
+        virtance_ids = FirewallVirtance.objects.filter(
+            firewall=firewall, virtance__user=request.user, virtance__is_deleted=False
+        ).values_list("virtance_id", flat=True)
+        virtances = Virtance.objects.filter(id__in=virtance_ids, user=request.user, is_deleted=False)
         serilizator = VirtanceSerializer(virtances, many=True)
         return Response({"virtances": serilizator.data})
 

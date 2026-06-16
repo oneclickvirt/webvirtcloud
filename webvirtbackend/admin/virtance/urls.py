@@ -1,7 +1,7 @@
 from django.urls import re_path
 from .views import AdminVirtanceIndexView, AdminVirtanceDataView, AdminVirtanceConsoleView
 from .views import AdminVirtanceResetEventAction, AdminVirtanceRecreateAction
-from .views import AdminVirtancePowerOnAction, AdminVirtancePowerOffAction, AdminVirtancePowerCyrcleAction
+from .views import AdminVirtancePowerOnAction, AdminVirtancePowerOffAction, AdminVirtancePowerCycleAction
 
 urlpatterns = [
     re_path(r"$", AdminVirtanceIndexView.as_view(), name="admin_virtance_index"),
@@ -10,8 +10,7 @@ urlpatterns = [
     re_path(r"^(?P<pk>\d+)/recreate/$", AdminVirtanceRecreateAction.as_view(), name="admin_virtance_recreate"),
     re_path(r"^(?P<pk>\d+)/power_on/$", AdminVirtancePowerOnAction.as_view(), name="admin_virtance_power_on"),
     re_path(r"^(?P<pk>\d+)/power_off/$", AdminVirtancePowerOffAction.as_view(), name="admin_virtance_power_off"),
-    re_path(
-        r"^(?P<pk>\d+)/power_cyrcle/$", AdminVirtancePowerCyrcleAction.as_view(), name="admin_virtance_power_cyrcle"
-    ),
+    re_path(r"^(?P<pk>\d+)/power_cycle/$", AdminVirtancePowerCycleAction.as_view(), name="admin_virtance_power_cycle"),
+    re_path(r"^(?P<pk>\d+)/power_cyrcle/$", AdminVirtancePowerCycleAction.as_view(), name="admin_virtance_power_cyrcle"),
     re_path(r"^(?P<pk>\d+)/reset_event/$", AdminVirtanceResetEventAction.as_view(), name="admin_virtance_reset_event"),
 ]

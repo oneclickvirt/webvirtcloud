@@ -3,7 +3,7 @@ from uuid import uuid4
 from decimal import Decimal
 from django.conf import settings
 from django.utils import timezone
-from django.db.models import F, Count, Exists, OuterRef
+from django.db.models import Prefetch
 from passlib.hash import sha512_crypt
 
 from webvirtcloud.celery import app
@@ -35,7 +35,53 @@ BACKUP_COST_RATIO = settings.BACKUP_COST_PERCENTAGE / 100
 
 
 def wvcomp_conn(compute):
+    if compute is None:
+        return None
     return WebVirtCompute(compute.token, compute.hostname)
+
+
+def fail_virtance_task(virtance, message, event, reset_status=False, clear_networks=False, fallback_status=None):
+    virtance_error(virtance.id, message, event)
+    if clear_networks:
+        IPAddress.objects.filter(virtance=virtance, is_float=False).delete()
+    if reset_status:
+        virtance.status = Virtance.INACTIVE
+    elif fallback_status is not None:
+        virtance.status = fallback_status
+    virtance.event = None
+    virtance.save()
+    return False
+
+
+def get_compute_client_or_fail(virtance, event):
+    wvcomp = wvcomp_conn(virtance.compute)
+    if wvcomp is None:
+        fail_virtance_task(virtance, "Virtance has no compute assigned.", event)
+    return wvcomp
+
+
+def response_detail(res):
+    if res is None:
+        return "Compute returned no response."
+    if isinstance(res, dict):
+        return res.get("detail")
+    return "Compute returned an invalid response."
+
+
+def stop_virtance_counter(virtance):
+    current_time = timezone.now()
+    first_day_month = current_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    try:
+        VirtanceCounter.objects.get(started__gt=first_day_month, virtance=virtance, stopped__isnull=True).stop()
+    except VirtanceCounter.DoesNotExist:
+        VirtanceCounter.objects.create(
+            virtance=virtance,
+            size=virtance.size,
+            amount=virtance.size.price,
+            backup_amount=virtance.size.price * Decimal(BACKUP_COST_RATIO) if virtance.is_backup_enabled else 0,
+            started=current_time - timezone.timedelta(hours=1),
+            stopped=current_time,
+        )
 
 
 @app.task
@@ -99,88 +145,107 @@ def create_virtance(virtance_id, password=None, send_email=True):
         private_key = decrypt_data(lbaas.private_key)
         keypairs.append(make_ssh_public(private_key))
 
-    if compute and ipv4_public and ipv4_compute and ipv4_private:
-        # TODO: rebuild webvirtcompute with new API for LBAAS type images
-        image_type = virtance.template.type
-        if virtance.template.type == Image.LBAAS:
-            image_type = "distribution"
-        images = [
-            {
-                "primary": True,
-                "name": vm_name(virtance.id),
-                "size": virtance.size.disk,
-                "type": image_type,
-                "md5sum": virtance.template.md5sum,
-                "file_name": virtance.template.file_name,
-                "public_url": settings.PUBLIC_IMAGES_URL,
-            }
-        ]
+    missing_resources = []
+    if compute is None:
+        missing_resources.append("compute")
+    if ipv4_public is None:
+        missing_resources.append("public IPv4")
+    if ipv4_compute is None:
+        missing_resources.append("compute IPv4")
+    if ipv4_private is None:
+        missing_resources.append("private IPv4")
+    if missing_resources:
+        return fail_virtance_task(
+            virtance,
+            f"Cannot create virtance; missing {', '.join(missing_resources)}.",
+            "create",
+            reset_status=True,
+            clear_networks=True,
+        )
 
-        network = {
-            "v4": {
-                "public": {
-                    "primary": {
-                        "address": ipv4_public.address,
-                        "gateway": ipv4_public.network.gateway,
-                        "netmask": ipv4_public.network.netmask,
-                        "dns1": ipv4_public.network.dns1,
-                        "dns2": ipv4_public.network.dns2,
-                    },
-                    "secondary": {
-                        "address": ipv4_compute.address,
-                        "gateway": ipv4_compute.network.gateway,
-                        "netmask": ipv4_compute.network.netmask,
-                    },
+    # TODO: rebuild webvirtcompute with new API for LBAAS type images
+    image_type = virtance.template.type
+    if virtance.template.type == Image.LBAAS:
+        image_type = "distribution"
+    images = [
+        {
+            "primary": True,
+            "name": vm_name(virtance.id),
+            "size": virtance.size.disk,
+            "type": image_type,
+            "md5sum": virtance.template.md5sum,
+            "file_name": virtance.template.file_name,
+            "public_url": settings.PUBLIC_IMAGES_URL,
+        }
+    ]
+
+    network = {
+        "v4": {
+            "public": {
+                "primary": {
+                    "address": ipv4_public.address,
+                    "gateway": ipv4_public.network.gateway,
+                    "netmask": ipv4_public.network.netmask,
+                    "dns1": ipv4_public.network.dns1,
+                    "dns2": ipv4_public.network.dns2,
                 },
-                "private": {
-                    "address": ipv4_private.address,
-                    "gateway": ipv4_private.network.gateway,
-                    "netmask": ipv4_private.network.netmask,
+                "secondary": {
+                    "address": ipv4_compute.address,
+                    "gateway": ipv4_compute.network.gateway,
+                    "netmask": ipv4_compute.network.netmask,
                 },
             },
-            "v6": None,
-        }
+            "private": {
+                "address": ipv4_private.address,
+                "gateway": ipv4_private.network.gateway,
+                "netmask": ipv4_private.network.netmask,
+            },
+        },
+        "v6": None,
+    }
 
-        wvcomp = wvcomp_conn(compute)
-        res = wvcomp.create_virtance(
-            virtance.id,
-            virtance.uuid.hex,
-            virtance.name,
-            virtance.size.vcpu,
-            virtance.size.memory,
-            images,
-            network,
-            keypairs,
-            password_hash,
+    wvcomp = wvcomp_conn(compute)
+    res = wvcomp.create_virtance(
+        virtance.id,
+        virtance.uuid.hex,
+        virtance.name,
+        virtance.size.vcpu,
+        virtance.size.memory,
+        images,
+        network,
+        keypairs,
+        password_hash,
+    )
+    error = response_detail(res)
+    if error:
+        return fail_virtance_task(
+            virtance, error, "create", reset_status=True, clear_networks=True
         )
-        if isinstance(res, dict) and res.get("detail"):
-            virtance_error(virtance_id, res.get("detail"), "create")
-            return False
-        else:
-            virtance.active()
-            virtance.reset_event()
 
-            current_time = timezone.now()
-            first_day_month = current_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            if not VirtanceCounter.objects.filter(started__gt=first_day_month, virtance=virtance, stopped=None):
-                VirtanceCounter.objects.create(
-                    virtance=virtance,
-                    size=virtance.size,
-                    amount=virtance.size.price,
-                    backup_amount=virtance.size.price * Decimal(BACKUP_COST_RATIO) if virtance.is_backup_enabled else 0,
-                )
+    virtance.active()
+    virtance.reset_event()
 
-            if virtance.template.type == Image.SNAPSHOT or virtance.template.type == Image.BACKUP:
-                virtance.template.reset_event()
+    current_time = timezone.now()
+    first_day_month = current_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if not VirtanceCounter.objects.filter(started__gt=first_day_month, virtance=virtance, stopped=None):
+        VirtanceCounter.objects.create(
+            virtance=virtance,
+            size=virtance.size,
+            amount=virtance.size.price,
+            backup_amount=virtance.size.price * Decimal(BACKUP_COST_RATIO) if virtance.is_backup_enabled else 0,
+        )
 
-            if send_email:
-                email_virtance_created(
-                    virtance.user.email,
-                    virtance.name,
-                    ipv4_public.address,
-                    virtance.region.name,
-                    virtance.template.description,
-                )
+    if virtance.template.type == Image.SNAPSHOT or virtance.template.type == Image.BACKUP:
+        virtance.template.reset_event()
+
+    if send_email:
+        email_virtance_created(
+            virtance.user.email,
+            virtance.name,
+            ipv4_public.address,
+            virtance.region.name,
+            virtance.template.description,
+        )
 
     return True
 
@@ -188,13 +253,25 @@ def create_virtance(virtance_id, password=None, send_email=True):
 @app.task
 def rebuild_virtance(virtance_id):
     keypairs = []
-    ipv4_public = None
-    ipv4_compute = None
-    ipv4_private = None
     virtance = Virtance.objects.get(id=virtance_id)
-    ipv4_public = IPAddress.objects.get(network__type=Network.PUBLIC, virtance=virtance, is_float=False)
-    ipv4_compute = IPAddress.objects.get(network__type=Network.COMPUTE, virtance=virtance)
-    ipv4_private = IPAddress.objects.get(network__type=Network.PRIVATE, virtance=virtance)
+    wvcomp = get_compute_client_or_fail(virtance, "rebuild")
+    if wvcomp is None:
+        return False
+
+    ipv4_public = IPAddress.objects.filter(network__type=Network.PUBLIC, virtance=virtance, is_float=False).first()
+    ipv4_compute = IPAddress.objects.filter(network__type=Network.COMPUTE, virtance=virtance).first()
+    ipv4_private = IPAddress.objects.filter(network__type=Network.PRIVATE, virtance=virtance).first()
+    missing_resources = []
+    if ipv4_public is None:
+        missing_resources.append("public IPv4")
+    if ipv4_compute is None:
+        missing_resources.append("compute IPv4")
+    if ipv4_private is None:
+        missing_resources.append("private IPv4")
+    if missing_resources:
+        return fail_virtance_task(
+            virtance, f"Cannot rebuild virtance; missing {', '.join(missing_resources)}.", "rebuild"
+        )
     password_hash = sha512_crypt.encrypt(uuid4().hex[0:24], salt=uuid4().hex[0:8], rounds=5000)
 
     for kpv in KeyPairVirtance.objects.filter(virtance=virtance):
@@ -237,54 +314,62 @@ def rebuild_virtance(virtance_id):
         "v6": None,
     }
 
-    wvcomp = wvcomp_conn(virtance.compute)
     res = wvcomp.rebuild_virtance(virtance.id, virtance.name, images, network, keypairs, password_hash)
-    if res.get("detail") is None:
+    error = response_detail(res)
+    if error is None:
         virtance.active()
         virtance.reset_event()
         return True
-    return False
+    return fail_virtance_task(virtance, error, "rebuild")
 
 
 @app.task
 def action_virtance(virtance_id, action):
     error = None
     reboot = False
+    if action == "power_cyrcle":
+        action = Virtance.POWER_CYCLE
     if action == "reboot":
         reboot = True
         action = "shutdown"
     virtance = Virtance.objects.get(pk=virtance_id)
-    wvcomp = wvcomp_conn(virtance.compute)
+    fallback_status = Virtance.INACTIVE if action == "power_on" else Virtance.ACTIVE
+    wvcomp = get_compute_client_or_fail(virtance, action)
+    if wvcomp is None:
+        return False
     res = wvcomp.action_virtance(virtance.id, action)
-    error = res.get("detail")
+    error = response_detail(res)
     if error is None:
         if action == "shutdown":
             timeout = 60
-            while wvcomp.status_virtance(virtance.id).get("status") != "shutoff":
+            while (wvcomp.status_virtance(virtance.id) or {}).get("status") != "shutoff":
                 timeout -= 1
                 time.sleep(1)
                 if timeout == 0:
                     action = "power_off"
                     res = wvcomp.action_virtance(virtance.id, action)
-                    error = res.get("detail")
+                    error = response_detail(res)
                     if error is None:
                         virtance.inactive()
+                    break
             else:
                 virtance.inactive()
         if action == "power_on":
             virtance.active()
         if action == "power_off":
             virtance.inactive()
-        if action == "power_cyrcle":
+        if action == "power_cycle":
             virtance.active()
         if reboot is True:
             action = "power_on"
             res = wvcomp.action_virtance(virtance.id, action)
-            error = res.get("detail")
+            error = response_detail(res)
             if error is None:
                 virtance.active()
     if error is None:
         virtance.reset_event()
+    else:
+        fail_virtance_task(virtance, error, action, fallback_status=fallback_status)
 
 
 @app.task
@@ -293,9 +378,12 @@ def resize_virtance(virtance_id, size_id):
     size = Size.objects.get(pk=size_id)
     old_size = virtance.size
 
-    wvcomp = wvcomp_conn(virtance.compute)
+    wvcomp = get_compute_client_or_fail(virtance, "resize")
+    if wvcomp is None:
+        return False
     res = wvcomp.resize_virtance(virtance.id, size.vcpu, size.memory, size.disk)
-    if res.get("detail") is None:
+    error = response_detail(res)
+    if error is None:
         virtance.active()
         virtance.reset_event()
         virtance.size = size
@@ -324,15 +412,18 @@ def resize_virtance(virtance_id, size_id):
             started=current_time,
         )
     else:
-        virtance_error(virtance_id, res.get("detail"), "resize")
+        fail_virtance_task(virtance, error, "resize")
 
 
 @app.task
 def snapshot_virtance(virtance_id, display_name):
     virtance = Virtance.objects.get(pk=virtance_id)
-    wvcomp = wvcomp_conn(virtance.compute)
+    wvcomp = get_compute_client_or_fail(virtance, "snapshot")
+    if wvcomp is None:
+        return False
     res = wvcomp.snapshot_virtance(virtance.id, uuid4().hex)
-    if res.get("detail") is None:
+    error = response_detail(res)
+    if error is None:
         image = Image.objects.create(
             user=virtance.user,
             source=virtance,
@@ -352,16 +443,19 @@ def snapshot_virtance(virtance_id, display_name):
         image.reset_event()
         virtance.reset_event()
     else:
-        virtance_error(virtance_id, res.get("detail"), "snapshot")
+        fail_virtance_task(virtance, error, "snapshot")
 
 
 @app.task
 def backup_virtance(virtance_id, backup=False):
     file_name = f"backup-{uuid4().hex}" if backup else f"snapshot-{uuid4().hex}"
     virtance = Virtance.objects.get(pk=virtance_id)
-    wvcomp = wvcomp_conn(virtance.compute)
+    wvcomp = get_compute_client_or_fail(virtance, "backup")
+    if wvcomp is None:
+        return False
     res = wvcomp.snapshot_virtance(virtance.id, file_name)
-    if res.get("detail") is None:
+    error = response_detail(res)
+    if error is None:
         image = Image.objects.create(
             user=virtance.user,
             source=virtance,
@@ -380,60 +474,77 @@ def backup_virtance(virtance_id, backup=False):
         image.reset_event()
         virtance.reset_event()
     else:
-        virtance_error(virtance_id, res.get("detail"), "backup")
+        fail_virtance_task(virtance, error, "backup")
 
 
 @app.task
 def restore_virtance(virtance_id, image_id):
     image = Image.objects.get(pk=image_id)
     virtance = Virtance.objects.get(pk=virtance_id)
-    wvcomp = wvcomp_conn(virtance.compute)
+    wvcomp = get_compute_client_or_fail(virtance, "restore")
+    if wvcomp is None:
+        image.reset_event()
+        return False
     res = wvcomp.restore_virtance(virtance_id, image.file_name, image.disk_size)
-    if res.get("detail") is None:
+    error = response_detail(res)
+    if error is None:
         image.reset_event()
         virtance.active()
         virtance.reset_event()
     else:
-        virtance_error(virtance_id, res.get("detail"), "restore")
+        image.reset_event()
+        fail_virtance_task(virtance, error, "restore")
 
 
 @app.task
 def reset_password_virtance(virtance_id, password=None):
     virtance = Virtance.objects.get(pk=virtance_id)
-    wvcomp = wvcomp_conn(virtance.compute)
+    wvcomp = get_compute_client_or_fail(virtance, "reset_password")
+    if wvcomp is None:
+        return False
     password_str = password if password else uuid4().hex[0:20]
     password_hash = sha512_crypt.encrypt(password_str, salt=uuid4().hex[0:8], rounds=5000)
     res = wvcomp.reset_password_virtance(virtance.id, password_hash)
-    if res.get("detail") is None:
+    error = response_detail(res)
+    if error is None:
         virtance.active()
         virtance.reset_event()
     else:
-        virtance_error(virtance_id, res.get("detail"), "reset_password")
+        fail_virtance_task(virtance, error, "reset_password")
 
 
 @app.task
 def enable_recovery_mode_virtance(virtance_id):
     virtance = Virtance.objects.get(pk=virtance_id)
-    wvcomp = wvcomp_conn(virtance.compute)
+    wvcomp = get_compute_client_or_fail(virtance, "enable_recovery_mode")
+    if wvcomp is None:
+        return False
     res = wvcomp.get_virtance_media(virtance.id)
-    if res.get("media"):
+    error = response_detail(res)
+    if error is None and res.get("media"):
         if isinstance(res.get("media"), list):
             res = wvcomp.mount_virtance_media(virtance_id, res.get("media")[0].get("dev"), settings.RECOVERY_ISO_NAME)
-            if res.get("detail") is None:
+            error = response_detail(res)
+            if error is None:
                 virtance.active()
                 virtance.enable_recovery_mode()
                 virtance.reset_event()
-    if res.get("detail"):
-        virtance_error(virtance_id, res.get("detail"), "enable_recovery_mode")
+    elif error is None:
+        error = "No recovery media device found."
+    if error:
+        fail_virtance_task(virtance, error, "enable_recovery_mode")
 
 
 @app.task
 def disable_recovery_mode_virtance(virtance_id):
     reset_event = False
     virtance = Virtance.objects.get(pk=virtance_id)
-    wvcomp = wvcomp_conn(virtance.compute)
+    wvcomp = get_compute_client_or_fail(virtance, "disable_recovery_mode")
+    if wvcomp is None:
+        return False
     res = wvcomp.get_virtance_media(virtance.id)
-    if res.get("media"):
+    error = response_detail(res)
+    if error is None and res.get("media"):
         if isinstance(res.get("media"), list):
             if res.get("media")[0].get("path") is None:
                 reset_event = True
@@ -441,16 +552,21 @@ def disable_recovery_mode_virtance(virtance_id):
                 res = wvcomp.umount_virtance_media(
                     virtance_id, res.get("media")[0].get("dev"), res.get("media")[0].get("path")
                 )
-                if res.get("detail") is None:
+                error = response_detail(res)
+                if error is None:
                     reset_event = True
 
         if reset_event is True:
-            virtance.active()
-            virtance.disable_recovery_mode()
-            virtance.reset_event()
+                    virtance.active()
+                    virtance.disable_recovery_mode()
+                    virtance.reset_event()
 
-    if res.get("detail"):
-        virtance_error(virtance_id, res.get("detail"), "disable_recovery_mode")
+    elif error is None:
+        virtance.disable_recovery_mode()
+        virtance.reset_event()
+
+    if error:
+        fail_virtance_task(virtance, error, "disable_recovery_mode")
 
 
 @app.task
@@ -472,42 +588,32 @@ def delete_virtance(virtance_id):
         unassign_floating_ip(floatip.id, virtance_reset_event=False)
 
     # Check if virtance has attached  and delete them if so
-    if LBaaSVirtance.objects.filter(lbaas__is_deleted=False, virtance=virtance, is_deleted=False).exists():
-        lbaas_virtance = LBaaSVirtance.objects.filter(virtance=virtance, is_deleted=False).filter()
+    lbaas_virtances = LBaaSVirtance.objects.filter(
+        lbaas__is_deleted=False, virtance=virtance, is_deleted=False
+    ).select_related("lbaas")
+    for lbaas_virtance in lbaas_virtances:
         lbaas_virtance.is_deleted = True
-        lbaas_virtance.save()
-        lbass = lbaas_virtance.lbaas
-        lbass.event = LBaaS.RELOAD
-        lbass.save()
-        shared_reload_lbaas(lbass.id)
+        lbaas_virtance.save(update_fields=["is_deleted", "updated"])
+        lbaas = lbaas_virtance.lbaas
+        lbaas.event = LBaaS.RELOAD
+        lbaas.save(update_fields=["event", "updated"])
+        shared_reload_lbaas(lbaas.id)
 
     # Delete virtance
     wvcomp = wvcomp_conn(virtance.compute)
-    res = wvcomp.delete_virtance(virtance.id)
-    if res.get("detail") is None:
+    if wvcomp is None:
+        res = {}
+    else:
+        res = wvcomp.delete_virtance(virtance.id)
+    error = response_detail(res)
+    if error is None:
         ipaddresse = IPAddress.objects.filter(virtance=virtance, is_float=False)
         ipaddresse.delete()
         virtance.delete()
+        stop_virtance_counter(virtance)
+        return True
 
-        current_time = timezone.now()
-        first_day_month = current_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        try:
-            VirtanceCounter.objects.get(started__gt=first_day_month, virtance=virtance, stopped__isnull=True).stop()
-        except VirtanceCounter.DoesNotExist:
-            # If not found counter, just create on 1 hour earlier
-            VirtanceCounter.objects.create(
-                virtance=virtance,
-                size=virtance.size,
-                amount=virtance.size.price,
-                backup_amount=virtance.size.price * Decimal(BACKUP_COST_RATIO) if virtance.is_backup_enabled else 0,
-                started=current_time - timezone.timedelta(hours=1),
-                stopped=current_time,
-            )
-
-    if res.get("detail"):
-        virtance_error(virtance_id, res.get("detail"), "delete")
-
-    return True
+    return fail_virtance_task(virtance, error, "delete")
 
 
 @app.task
@@ -563,32 +669,29 @@ def virtance_backup():
         is_backup_enabled=True,
     ).values("compute_id")
 
+    backup_images = Image.objects.filter(type=Image.BACKUP, is_deleted=False).order_by("-created")
     unbacked_virtances = (
         Virtance.objects.filter(
             is_deleted=False,
             is_backup_enabled=True,
         )
         .exclude(compute__in=compute_ids_with_backup)
-        .annotate(
-            has_backup=Exists(Image.objects.filter(source=OuterRef("pk"), type=Image.BACKUP, is_deleted=False)),
-            backup_count=Count("image", filter=F("image__type") == Image.BACKUP),
-        )
+        .prefetch_related(Prefetch("image_set", queryset=backup_images, to_attr="backup_images"))
     )
 
     for virtance in unbacked_virtances:
         if virtance.compute_id not in compute_event_backup_ids:
-            if virtance.has_backup:
+            backups = getattr(virtance, "backup_images", [])
+            if backups:
                 # Check if backup is outdated
-                if (
-                    timezone.now() - virtance.image_set.filter(type=Image.BACKUP, is_deleted=False).first().created
-                ).days >= settings.BACKUP_PERIOD_DAYS:
+                if (timezone.now() - backups[0].created).days >= settings.BACKUP_PERIOD_DAYS:
                     backup_virtance.delay(virtance.id, backup=True)
                     virtance.event = Virtance.BACKUP
                     virtance.save()
                     compute_event_backup_ids.append(virtance.compute_id)
                 # Check if backup count exceeds the monthly limit
-                if virtance.backup_count > settings.BACKUP_PER_MONTH:
-                    image_delete.delay(virtance.image_set.filter(type=Image.BACKUP, is_deleted=False).last().id)
+                if len(backups) > settings.BACKUP_PER_MONTH:
+                    image_delete.delay(backups[-1].id)
             else:
                 # If no existing backups, create one
                 backup_virtance.delay(virtance.id, backup=True)
@@ -611,3 +714,10 @@ def backups_delete(virtance_id):
         virtance.disable_backups()
         virtance.active()
         virtance.reset_event()
+    else:
+        fail_virtance_task(
+            virtance,
+            "Unable to delete all backups while disabling backups.",
+            Virtance.DISABLE_BACKUPS,
+            fallback_status=Virtance.ACTIVE,
+        )

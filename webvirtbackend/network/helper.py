@@ -10,7 +10,7 @@ SUBNET_V4_RANGE = slice(2, -2)
 
 
 def assign_free_ipv4_compute(virtance_id):
-    virtance = Virtance.objects.get(id=virtance_id)
+    virtance = Virtance.objects.select_related("compute", "region").get(id=virtance_id, is_deleted=False)
     virtances = Virtance.objects.filter(compute=virtance.compute, is_deleted=False)
     network = Network.objects.get(
         region=virtance.region, version=Network.IPv4, type=Network.COMPUTE, is_active=True, is_deleted=False
@@ -25,7 +25,7 @@ def assign_free_ipv4_compute(virtance_id):
 
 
 def assign_free_ipv4_public(virtance_id, is_float=False):
-    virtance = Virtance.objects.get(id=virtance_id)
+    virtance = Virtance.objects.select_related("region").get(id=virtance_id, is_deleted=False)
     networks = Network.objects.filter(
         region=virtance.region, version=Network.IPv4, type=Network.PUBLIC, is_active=True, is_deleted=False
     )
@@ -41,7 +41,7 @@ def assign_free_ipv4_public(virtance_id, is_float=False):
 
 
 def assign_free_ipv4_private(virtance_id):
-    virtance = Virtance.objects.get(id=virtance_id)
+    virtance = Virtance.objects.select_related("region").get(id=virtance_id, is_deleted=False)
     networks = Network.objects.filter(
         region=virtance.region, version=Network.IPv4, type=Network.PRIVATE, is_active=True, is_deleted=False
     )
@@ -55,7 +55,7 @@ def assign_free_ipv4_private(virtance_id):
 
 
 def assign_free_ipv6_public(virtance_id):
-    virtance = Virtance.objects.get(id=virtance_id)
+    virtance = Virtance.objects.select_related("region").get(id=virtance_id, is_deleted=False)
     networks = Network.objects.filter(
         region=virtance.region, version=Network.IPv6, type=Network.PUBLIC, is_active=True, is_deleted=False
     )

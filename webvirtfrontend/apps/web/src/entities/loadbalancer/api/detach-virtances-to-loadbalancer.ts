@@ -1,7 +1,7 @@
 import request from '@/shared/api/request';
 
-export function detachVirtanceFromLoadbalancer(uuid: string, payload: number[]) {
-  return request.delete(`load_balancers/${uuid}/virtances`, {
+export async function detachVirtanceFromLoadbalancer(uuid: string, payload: number[]): Promise<void> {
+  await request.delete(`load_balancers/${uuid}/virtances`, {
     json: { virtance_ids: payload },
   });
 }

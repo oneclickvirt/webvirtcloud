@@ -76,7 +76,7 @@ export function LoadbalancersTable() {
       {
         field: 'region',
         name: 'Region',
-        formatter: (item) => item.region.name,
+        formatter: (item) => item.region?.name ?? 'N/A',
       },
       {
         field: 'created_at',
@@ -116,14 +116,15 @@ export function LoadbalancersTable() {
         if (query.state.error) {
           return false;
         }
-        if (query.state.data && query.state.data.load_balancer.event === null) {
+        const data = query.state.data as { load_balancer: Loadbalancer } | undefined;
+        if (data && data.load_balancer.event === null) {
           queryClient.setQueryData<Loadbalancer[]>(
             loadbalancerQueries.list(),
             (previousData) => {
               if (previousData) {
                 return previousData.map((loadbalancer: Loadbalancer) =>
                   loadbalancer.id === event.id
-                    ? query.state.data?.load_balancer
+                    ? data.load_balancer
                     : loadbalancer,
                 );
               }

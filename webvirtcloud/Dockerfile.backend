@@ -12,6 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+FROM --platform=$BUILDPLATFORM node:18-alpine AS client-build
+
+WORKDIR /frontend/apps/web/
+
+COPY ./webvirtfrontend/ /frontend/
+COPY ./webvirtcloud/env.common /frontend/env.common
+COPY ./webvirtcloud/env.local /frontend/env.local
+
+RUN npm install && \
+    set -a && . /frontend/env.common && . /frontend/env.local && set +a && npm run build
+
 FROM --platform=$BUILDPLATFORM python:3.10-alpine AS backend-deps
 
 WORKDIR /requirements
@@ -19,7 +30,7 @@ WORKDIR /requirements
 ENV UV_PROJECT_ENVIRONMENT=/usr/local
 
 COPY ./webvirtbackend/pyproject.toml ./webvirtbackend/uv.lock /requirements/
-COPY ./extra-requirements.txt* /requirements/
+COPY ./webvirtcloud/extra-requirements.txt* /requirements/
 
 RUN apk add --no-cache uv gcc g++ pango fontconfig openssh-client \
                        ttf-freefont font-noto terminus-font \
@@ -40,4 +51,4 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 COPY ./webvirtbackend/ /backend/
 
-COPY --from=webvirtcloud:frontend /backend/templates/client/index.html /backend/templates/client/index.html
+COPY --from=client-build /frontend/apps/web/dist/index.html /backend/templates/client/index.html

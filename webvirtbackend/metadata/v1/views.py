@@ -7,6 +7,26 @@ from virtance.utils import decrypt_data, make_ssh_public
 from .utils import MetadataMixin
 
 
+def not_found_response():
+    return HttpResponse("Not Found", status=404)
+
+
+def get_virtance_ip(virtance, network_type):
+    if virtance is None:
+        return None
+    return IPAddress.objects.select_related("network").filter(virtance=virtance, network__type=network_type).first()
+
+
+def ip_metadata(ipaddr):
+    if ipaddr is None:
+        return None
+    return {
+        "ip_address": ipaddr.address,
+        "netmask": ipaddr.network.netmask,
+        "gateway": ipaddr.network.gateway,
+    }
+
+
 class MetadataV1Json(MetadataMixin):
     def get(self, request, *args, **kwargs):
         """
@@ -17,51 +37,44 @@ class MetadataV1Json(MetadataMixin):
         public_keys = []
 
         if self.virtance is None:
-            return HttpResponse("Not Found", status=404)
+            return not_found_response()
 
         for i in KeyPairVirtance.objects.filter(virtance=self.virtance):
             public_keys.append(i.keypair.public_key)
 
         if self.virtance.type == self.virtance.LBAAS:
-            lbaas = LBaaS.objects.get(virtance_id=self.virtance.id)
+            lbaas = LBaaS.objects.filter(virtance_id=self.virtance.id, is_deleted=False).first()
+            if lbaas is None:
+                return not_found_response()
             private_key = decrypt_data(lbaas.private_key)
             public_keys.append(make_ssh_public(private_key))
 
-        ipaddr = IPAddress.objects.filter(virtance=self.virtance)
+        compute_ip = get_virtance_ip(self.virtance, Network.COMPUTE)
+        public_ip = get_virtance_ip(self.virtance, Network.PUBLIC)
+        private_ip = get_virtance_ip(self.virtance, Network.PRIVATE)
+
+        if compute_ip is None or public_ip is None or private_ip is None:
+            return not_found_response()
+
         interfaces = {
             "public": [
                 {
-                    "compute_ipv4": {
-                        "ip_address": ipaddr.filter(network__type=Network.COMPUTE).first().address,
-                        "netmask": ipaddr.filter(network__type=Network.COMPUTE).first().network.netmask,
-                        "gateway": ipaddr.filter(network__type=Network.COMPUTE).first().network.gateway,
-                    },
-                    "ipv4": {
-                        "ip_address": ipaddr.filter(network__type=Network.PUBLIC).first().address,
-                        "netmask": ipaddr.filter(network__type=Network.PUBLIC).first().network.netmask,
-                        "gateway": ipaddr.filter(network__type=Network.PUBLIC).first().network.gateway,
-                    },
+                    "compute_ipv4": ip_metadata(compute_ip),
+                    "ipv4": ip_metadata(public_ip),
                     "mac": "00:00:00:00:00:00",
                     "type": "public",
                 }
             ],
             "private": [
                 {
-                    "ipv4": {
-                        "ip_address": ipaddr.filter(network__type=Network.PRIVATE).first().address,
-                        "netmask": ipaddr.filter(network__type=Network.PRIVATE).first().network.netmask,
-                        "gateway": ipaddr.filter(network__type=Network.PRIVATE).first().network.gateway,
-                    },
+                    "ipv4": ip_metadata(private_ip),
                     "mac": "00:00:00:00:00:00",
                     "type": "private",
                 }
             ],
         }
 
-        nameservers = [
-            ipaddr.filter(network__type=Network.PUBLIC).first().network.dns1,
-            ipaddr.filter(network__type=Network.PUBLIC).first().network.dns2,
-        ]
+        nameservers = [public_ip.network.dns1, public_ip.network.dns2]
 
         response = {
             "id": self.virtance.id,
@@ -182,25 +195,25 @@ class MetadataInterfacesPublicIPv4(MetadataMixin):
 
 class MetadataInterfacesPublicIPv4Address(MetadataMixin):
     def get(self, request, *args, **kwargs):
-        ipaddr = IPAddress.objects.filter(virtance=self.virtance, network__type=Network.PUBLIC).first()
+        ipaddr = get_virtance_ip(self.virtance, Network.PUBLIC)
         if self.virtance is None or ipaddr is None:
-            return HttpResponse("Not Found", status=404)
+            return not_found_response()
         return HttpResponse(ipaddr.address)
 
 
 class MetadataInterfacesPublicIPv4Netmask(MetadataMixin):
     def get(self, request, *args, **kwargs):
-        ipaddr = IPAddress.objects.filter(virtance=self.virtance, network__type=Network.PUBLIC).first()
+        ipaddr = get_virtance_ip(self.virtance, Network.PUBLIC)
         if self.virtance is None or ipaddr is None:
-            return HttpResponse("Not Found", status=404)
+            return not_found_response()
         return HttpResponse(ipaddr.network.netmask)
 
 
 class MetadataInterfacesPublicIPv4Gateway(MetadataMixin):
     def get(self, request, *args, **kwargs):
-        ipaddr = IPAddress.objects.filter(virtance=self.virtance, network__type=Network.PUBLIC).first()
+        ipaddr = get_virtance_ip(self.virtance, Network.PUBLIC)
         if self.virtance is None or ipaddr is None:
-            return HttpResponse("Not Found", status=404)
+            return not_found_response()
         return HttpResponse(ipaddr.network.gateway)
 
 
@@ -215,25 +228,25 @@ class MetadataInterfacesPublicComputeIPv4(MetadataMixin):
 
 class MetadataInterfacesPublicComputeIPv4Address(MetadataMixin):
     def get(self, request, *args, **kwargs):
-        ipaddr = IPAddress.objects.filter(virtance=self.virtance, network__type=Network.COMPUTE).first()
+        ipaddr = get_virtance_ip(self.virtance, Network.COMPUTE)
         if self.virtance is None or ipaddr is None:
-            return HttpResponse("Not Found", status=404)
+            return not_found_response()
         return HttpResponse(ipaddr.address)
 
 
 class MetadataInterfacesPublicComputeIPv4Netmask(MetadataMixin):
     def get(self, request, *args, **kwargs):
-        ipaddr = IPAddress.objects.filter(virtance=self.virtance, network__type=Network.COMPUTE).first()
+        ipaddr = get_virtance_ip(self.virtance, Network.COMPUTE)
         if self.virtance is None or ipaddr is None:
-            return HttpResponse("Not Found", status=404)
+            return not_found_response()
         return HttpResponse(ipaddr.network.netmask)
 
 
 class MetadataInterfacesPublicComputeIPv4Gateway(MetadataMixin):
     def get(self, request, *args, **kwargs):
-        ipaddr = IPAddress.objects.filter(virtance=self.virtance, network__type=Network.COMPUTE).first()
+        ipaddr = get_virtance_ip(self.virtance, Network.COMPUTE)
         if self.virtance is None or ipaddr is None:
-            return HttpResponse("Not Found", status=404)
+            return not_found_response()
         return HttpResponse(ipaddr.network.gateway)
 
 
@@ -281,25 +294,25 @@ class MetadataInterfacesPrivateIPv4(MetadataMixin):
 
 class MetadataInterfacesPrivateIPv4Address(MetadataMixin):
     def get(self, request, *args, **kwargs):
-        ipaddr = IPAddress.objects.filter(virtance=self.virtance, network__type=Network.PRIVATE).first()
+        ipaddr = get_virtance_ip(self.virtance, Network.PRIVATE)
         if self.virtance is None or ipaddr is None:
-            return HttpResponse("Not Found", status=404)
+            return not_found_response()
         return HttpResponse(ipaddr.address)
 
 
 class MetadataInterfacesPrivateIPv4Netmask(MetadataMixin):
     def get(self, request, *args, **kwargs):
-        ipaddr = IPAddress.objects.filter(virtance=self.virtance, network__type=Network.PRIVATE).first()
+        ipaddr = get_virtance_ip(self.virtance, Network.PRIVATE)
         if self.virtance is None or ipaddr is None:
-            return HttpResponse("Not Found", status=404)
+            return not_found_response()
         return HttpResponse(ipaddr.network.netmask)
 
 
 class MetadataInterfacesPrivateIPv4Gateway(MetadataMixin):
     def get(self, request, *args, **kwargs):
-        ipaddr = IPAddress.objects.filter(virtance=self.virtance, network__type=Network.PRIVATE).first()
+        ipaddr = get_virtance_ip(self.virtance, Network.PRIVATE)
         if self.virtance is None or ipaddr is None:
-            return HttpResponse("Not Found", status=404)
+            return not_found_response()
         return HttpResponse(ipaddr.network.gateway)
 
 
@@ -314,8 +327,8 @@ class MetadataDNS(MetadataMixin):
 
 class MetadataDNSNameservers(MetadataMixin):
     def get(self, request, *args, **kwargs):
-        ipaddr = IPAddress.objects.filter(virtance=self.virtance, network__type=Network.PUBLIC).first()
+        ipaddr = get_virtance_ip(self.virtance, Network.PUBLIC)
         if self.virtance is None or ipaddr is None:
-            return HttpResponse("Not Found", status=404)
+            return not_found_response()
         response = "\n".join([ipaddr.network.dns1, ipaddr.network.dns2])
         return HttpResponse(response)

@@ -170,9 +170,9 @@ export function LoadbalancerHealthCheck() {
                 {...register('health_check.check_interval_seconds')}
                 className="border-border h-10 w-full rounded-md border bg-transparent shadow-sm"
               />
-              {errors?.health_check?.path && (
+              {errors?.health_check?.check_interval_seconds && (
                 <p className="text-sm font-medium text-red-500">
-                  {errors?.health_check?.path?.message}
+                  {errors?.health_check?.check_interval_seconds?.message}
                 </p>
               )}
             </div>
@@ -203,7 +203,7 @@ export function LoadbalancerHealthCheck() {
               )}
             </div>
             <div className="space-y-1">
-              <Label htmlFor="health_check-unhealthy">Healthy threshold</Label>
+              <Label htmlFor="health_check-healthy">Healthy threshold</Label>
               <Input
                 id="health_check-healthy"
                 {...register('health_check.healthy_threshold')}

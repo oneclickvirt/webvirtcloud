@@ -7,6 +7,6 @@ export const deleteFirewallRule = (
     inbound_rules?: FirewallInboundRule[];
     outbound_rules?: FirewallOutboundRule[];
   },
-): Promise<unknown> => {
-  return request.delete(`firewalls/${uuid}/rules`, { json: { ...payload } }).json();
+): Promise<void> => {
+  return request.delete(`firewalls/${uuid}/rules`, { json: { ...payload } }).then(() => undefined);
 };

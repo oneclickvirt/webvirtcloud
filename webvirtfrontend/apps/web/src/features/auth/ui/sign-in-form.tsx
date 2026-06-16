@@ -6,6 +6,7 @@ import { Error } from 'ui/components/error';
 import { Input } from 'ui/components/input';
 
 import { login } from '@/entities/auth';
+import { getHTTPErrorMessage } from '@/shared/api/errors';
 
 interface IFormInputs {
   email: string;
@@ -29,9 +30,9 @@ export function SignInForm({ onSuccess }: Props) {
       const { token } = await login(data);
 
       onSuccess(token);
-    } catch (e) {
-      const { message } = await e.response.json();
-      setError('root', { message: 'Bad request' });
+    } catch (error) {
+      const message = await getHTTPErrorMessage(error);
+      setError('root', { message });
       toast.error('Bad request', { description: message });
     }
   }

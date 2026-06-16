@@ -46,10 +46,17 @@ if settings.DEBUG:
         re_path(r"^redoc/$", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
         re_path(r"^swagger/$", schema_view.with_ui("swagger", cache_timeout=0), name="schema-swagger-ui"),
         re_path(r"^swagger(?P<format>\.json|\.yaml)$", schema_view.without_ui(cache_timeout=0), name="schema-yaml"),
-        # Debug Toolbar
-        re_path("__debug__/", include("debug_toolbar.urls")),
-        re_path("__reload__/", include("django_browser_reload.urls")),
     ]
+
+    if "debug_toolbar" in settings.INSTALLED_APPS:
+        urlpatterns += [
+            re_path("__debug__/", include("debug_toolbar.urls")),
+        ]
+
+    if "django_browser_reload" in settings.INSTALLED_APPS:
+        urlpatterns += [
+            re_path("__reload__/", include("django_browser_reload.urls")),
+        ]
 
 urlpatterns += [
     re_path(r"^$", never_cache(IndexView.as_view()), name="index"),

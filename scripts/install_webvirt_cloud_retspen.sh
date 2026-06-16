@@ -604,7 +604,21 @@ create_admin() {
     _yellow "创建管理员用户..."
     cd /srv/webvirtcloud
     source venv/bin/activate
-    echo "from django.contrib.auth.models import User; User.objects.create_superuser('admin', 'admin@example.com', 'admin')" | python3 manage.py shell || echo "Admin user already exists, skipping creation"
+    ADMIN_USERNAME="${WEBVIRT_ADMIN_USERNAME:-admin}"
+    ADMIN_EMAIL="${WEBVIRT_ADMIN_EMAIL:-admin@example.com}"
+    ADMIN_PASSWORD="${WEBVIRT_ADMIN_PASSWORD:-$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')}"
+    export ADMIN_USERNAME ADMIN_EMAIL ADMIN_PASSWORD
+    python3 manage.py shell <<'PY' || echo "Admin user already exists, skipping creation"
+import os
+from django.contrib.auth.models import User
+
+username = os.environ["ADMIN_USERNAME"]
+email = os.environ["ADMIN_EMAIL"]
+password = os.environ["ADMIN_PASSWORD"]
+
+if not User.objects.filter(username=username).exists():
+    User.objects.create_superuser(username, email, password)
+PY
     deactivate
     _green "✓ 管理员用户设置完成"
 }
@@ -688,8 +702,8 @@ configure_firewall() {
 show_completion() {
     _green "WebVirtCloud 安装完成! / WebVirtCloud installation completed!"
     _yellow "访问地址: http://$IPV4 / Access URL: http://$IPV4"
-    _yellow "默认用户名: admin / Default username: admin"
-    _yellow "默认密码: admin / Default password: admin"
+    _yellow "管理员用户名: ${ADMIN_USERNAME:-admin} / Admin username: ${ADMIN_USERNAME:-admin}"
+    _yellow "管理员密码: ${ADMIN_PASSWORD:-see WEBVIRT_ADMIN_PASSWORD} / Admin password: ${ADMIN_PASSWORD:-see WEBVIRT_ADMIN_PASSWORD}"
 }
 
 main() {

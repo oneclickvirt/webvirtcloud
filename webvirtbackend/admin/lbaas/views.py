@@ -1,5 +1,6 @@
 from django.urls import reverse
 from django.http import HttpResponse
+from django.contrib import messages
 from django.shortcuts import redirect, get_object_or_404
 from django_filters.views import FilterView
 from django_tables2 import SingleTableMixin, RequestConfig
@@ -63,9 +64,21 @@ class AdminLBaaSDataView(AdminTemplateView):
         context["rules_table"] = rules_table
         context["health_table"] = health_table
         context["virtances_table"] = virtances_table
-        context["ipv4_public"] = IPAddress.objects.get(network__type=Network.PUBLIC, virtance=lbaas.virtance)
-        context["ipv4_private"] = IPAddress.objects.get(network__type=Network.PRIVATE, virtance=lbaas.virtance)
-        context["ipv4_compute"] = IPAddress.objects.get(network__type=Network.COMPUTE, virtance=lbaas.virtance)
+        context["ipv4_public"] = IPAddress.objects.filter(
+            network__type=Network.PUBLIC, virtance=lbaas.virtance
+        ).first()
+        context["ipv4_private"] = IPAddress.objects.filter(
+            network__type=Network.PRIVATE, virtance=lbaas.virtance
+        ).first()
+        context["ipv4_compute"] = IPAddress.objects.filter(
+            network__type=Network.COMPUTE, virtance=lbaas.virtance
+        ).first()
+        if context["ipv4_public"] is None:
+            messages.error(self.request, "No public IP address assigned to this load balancer")
+        if context["ipv4_private"] is None:
+            messages.error(self.request, "No private IP address assigned to this load balancer")
+        if context["ipv4_compute"] is None:
+            messages.error(self.request, "No compute IP address assigned to this load balancer")
         return context
 
 

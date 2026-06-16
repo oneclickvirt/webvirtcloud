@@ -37,6 +37,57 @@ class StickySessionsSerializer(serializers.Serializer):
     cookie_ttl_seconds = serializers.IntegerField(source="sticky_sessions_cookie_ttl")
 
 
+def validate_forwarding_rules(forwarding_rules, require_target=True):
+    if not forwarding_rules:
+        raise serializers.ValidationError({"forwarding_rules": ["Forwarding rules is required."]})
+
+    if not all(isinstance(x, dict) for x in forwarding_rules):
+        raise serializers.ValidationError({"forwarding_rules": ["Invalid forwarding rules."]})
+
+    if len([tuple(sorted(d.items())) for d in forwarding_rules]) != len(
+        set([tuple(sorted(d.items())) for d in forwarding_rules])
+    ):
+        raise serializers.ValidationError({"forwarding_rules": ["Duplicate forwarding rules."]})
+
+    entry_data = [f'{rule.get("entry_protocol")}_{rule.get("entry_port")}' for rule in forwarding_rules]
+    if len(entry_data) != len(set(entry_data)):
+        raise serializers.ValidationError({"forwarding_rules": ["Duplicate entry_protocol and entry_port."]})
+
+    for rule in forwarding_rules:
+        if (
+            not rule.get("entry_port")
+            or not rule.get("entry_protocol")
+            or (require_target and not rule.get("target_port"))
+            or (require_target and not rule.get("target_protocol"))
+        ):
+            raise serializers.ValidationError({"forwarding_rules": ["Invalid forwarding rules."]})
+
+        if rule.get("entry_protocol") not in [x[0] for x in LBaaSForwadRule.PROTOCOL_CHOICES]:
+            raise serializers.ValidationError({"forwarding_rules": ["Invalid entry_protocol."]})
+
+        if not 0 < rule.get("entry_port") < 65536:
+            raise serializers.ValidationError({"forwarding_rules": ["Invalid entry_port."]})
+
+        if require_target:
+            if rule.get("target_protocol") not in [x[0] for x in LBaaSForwadRule.PROTOCOL_CHOICES]:
+                raise serializers.ValidationError({"forwarding_rules": ["Invalid target_protocol."]})
+
+            if not 0 < rule.get("target_port") < 65536:
+                raise serializers.ValidationError({"forwarding_rules": ["Invalid target_port."]})
+
+            if rule.get("entry_protocol") != rule.get("target_protocol"):
+                raise serializers.ValidationError(
+                    {
+                        "forwarding_rules": [
+                            (
+                                "Entry and target protocol must be the same. "
+                                "Support for different protocols is temporarily unsupported."
+                            )
+                        ]
+                    }
+                )
+
+
 class LBaaSSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(required=False, read_only=True, source="uuid")
     ip = serializers.SerializerMethodField(read_only=True)
@@ -97,55 +148,7 @@ class LBaaSSerializer(serializers.ModelSerializer):
         except Region.DoesNotExist:
             raise serializers.ValidationError({"region": ["Region not found."]})
 
-        # Check forwarding_rules
-        if not forwarding_rules:
-            raise serializers.ValidationError({"forwarding_rules": ["Forwarding rules is required."]})
-        if not all(isinstance(x, dict) for x in forwarding_rules):
-            raise serializers.ValidationError({"forwarding_rules": ["Invalid forwarding rules."]})
-
-        # Check duplicate forwarding rules for entry and target
-        if len([tuple(sorted(d.items())) for d in forwarding_rules]) != len(
-            set([tuple(sorted(d.items())) for d in forwarding_rules])
-        ):
-            raise serializers.ValidationError({"forwarding_rules": ["Duplicate forwarding rules."]})
-
-        # Check duplicate forwarding rules on entry data
-        entry_data = [f'{rule.get("entry_protcol")}_{rule.get("entry_port")}' for rule in forwarding_rules]
-        if len(entry_data) != len(set(entry_data)):
-            raise serializers.ValidationError({"forwarding_rules": ["Duplicate entry_protcol and entry_port."]})
-
-        for rule in forwarding_rules:
-            if (
-                not rule.get("entry_port")
-                or not rule.get("entry_protocol")
-                or not rule.get("target_port")
-                or not rule.get("target_protocol")
-            ):
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid forwarding rules."]})
-
-            if rule.get("entry_protocol") not in [x[0] for x in LBaaSForwadRule.PROTOCOL_CHOICES]:
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid entry_protocol."]})
-
-            if not 0 < rule.get("entry_port") < 65536:
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid entry_port."]})
-
-            if rule.get("target_protocol") not in [x[0] for x in LBaaSForwadRule.PROTOCOL_CHOICES]:
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid target_protocol."]})
-
-            if not 0 < rule.get("target_port") < 65536:
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid target_port."]})
-
-            if rule.get("entry_protocol") != rule.get("target_protocol"):
-                raise serializers.ValidationError(
-                    {
-                        "forwarding_rules": [
-                            (
-                                "Entry and target protocol must be the same. "
-                                "Support for different procotols is temporarily unsupported."
-                            )
-                        ]
-                    }
-                )
+        validate_forwarding_rules(forwarding_rules)
 
         # Check if virtance_ids are valid
         if virtance_ids:
@@ -167,19 +170,31 @@ class LBaaSSerializer(serializers.ModelSerializer):
                 if health_check.get("path") == "" or not health_check.get("path"):
                     raise serializers.ValidationError({"health_check": ["Path is required for HTTP protocol."]})
 
-            if 1 > health_check.get("port") < 65535:
+            if not isinstance(health_check.get("port"), int) or not 0 < health_check.get("port") < 65536:
                 raise serializers.ValidationError({"health_check": ["Invalid port."]})
 
-            if 1 > health_check.get("check_interval_seconds") < 9999:
+            if (
+                not isinstance(health_check.get("check_interval_seconds"), int)
+                or not 0 < health_check.get("check_interval_seconds") < 10000
+            ):
                 raise serializers.ValidationError({"health_check": ["Invalid check_interval_seconds."]})
 
-            if 1 > health_check.get("response_timeout_seconds") < 9999:
+            if (
+                not isinstance(health_check.get("response_timeout_seconds"), int)
+                or not 0 < health_check.get("response_timeout_seconds") < 10000
+            ):
                 raise serializers.ValidationError({"health_check": ["Invalid response_timeout_seconds."]})
 
-            if 1 > health_check.get("healthy_threshold") < 999:
+            if (
+                not isinstance(health_check.get("healthy_threshold"), int)
+                or not 0 < health_check.get("healthy_threshold") < 1000
+            ):
                 raise serializers.ValidationError({"health_check": ["Invalid healthy_threshold."]})
 
-            if 1 > health_check.get("unhealthy_threshold") < 999:
+            if (
+                not isinstance(health_check.get("unhealthy_threshold"), int)
+                or not 0 < health_check.get("unhealthy_threshold") < 1000
+            ):
                 raise serializers.ValidationError({"health_check": ["Invalid unhealthy_threshold."]})
 
         # Check if sticky_sessions is valid
@@ -187,7 +202,10 @@ class LBaaSSerializer(serializers.ModelSerializer):
             if not sticky_sessions.get("cookie_name") or sticky_sessions.get("cookie_name") == "":
                 raise serializers.ValidationError({"sticky_sessions": ["Cookie name is required."]})
 
-            if not sticky_sessions.get("cookie_ttl_seconds") or 1 > sticky_sessions.get("cookie_ttl_seconds") < 9999:
+            if (
+                not isinstance(sticky_sessions.get("cookie_ttl_seconds"), int)
+                or not 0 < sticky_sessions.get("cookie_ttl_seconds") < 10000
+            ):
                 raise serializers.ValidationError({"sticky_sessions": ["Invalid cookie_ttl."]})
 
         return attrs
@@ -195,7 +213,9 @@ class LBaaSSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
 
-        data["region"] = RegionSerializer(Region.objects.get(id=instance.virtance.region.id, is_deleted=False)).data
+        data["region"] = None
+        if instance.virtance and instance.virtance.region and instance.virtance.region.is_deleted is False:
+            data["region"] = RegionSerializer(instance.virtance.region).data
         data["health_check"] = HeathCheckSerializer(instance).data
         data["virtance_ids"] = [
             lv.virtance.id
@@ -246,9 +266,9 @@ class LBaaSSerializer(serializers.ModelSerializer):
             check_healthy_threshold = health_check.get("healthy_threshold")
             check_unhealthy_threshold = health_check.get("unhealthy_threshold")
 
-        if not template and not size:
+        if not template or not size:
             raise serializers.ValidationError(
-                {"error": ["Template or size not found. Plese contact support for more information."]}
+                {"error": ["Template or size not found. Please contact support for more information."]}
             )
 
         virtance = Virtance.objects.create(
@@ -325,19 +345,31 @@ class LBaaSUpdateSerializer(serializers.ModelSerializer):
                 if health_check.get("path") == "" or not health_check.get("path"):
                     raise serializers.ValidationError({"health_check": ["Path is required for HTTP protocol."]})
 
-            if 1 > health_check.get("port") < 65535:
+            if not isinstance(health_check.get("port"), int) or not 0 < health_check.get("port") < 65536:
                 raise serializers.ValidationError({"health_check": ["Invalid port."]})
 
-            if 1 > health_check.get("check_interval_seconds") < 9999:
+            if (
+                not isinstance(health_check.get("check_interval_seconds"), int)
+                or not 0 < health_check.get("check_interval_seconds") < 10000
+            ):
                 raise serializers.ValidationError({"health_check": ["Invalid check_interval_seconds."]})
 
-            if 1 > health_check.get("response_timeout_seconds") < 9999:
+            if (
+                not isinstance(health_check.get("response_timeout_seconds"), int)
+                or not 0 < health_check.get("response_timeout_seconds") < 10000
+            ):
                 raise serializers.ValidationError({"health_check": ["Invalid response_timeout_seconds."]})
 
-            if 1 > health_check.get("healthy_threshold") < 999:
+            if (
+                not isinstance(health_check.get("healthy_threshold"), int)
+                or not 0 < health_check.get("healthy_threshold") < 1000
+            ):
                 raise serializers.ValidationError({"health_check": ["Invalid healthy_threshold."]})
 
-            if 1 > health_check.get("unhealthy_threshold") < 999:
+            if (
+                not isinstance(health_check.get("unhealthy_threshold"), int)
+                or not 0 < health_check.get("unhealthy_threshold") < 1000
+            ):
                 raise serializers.ValidationError({"health_check": ["Invalid unhealthy_threshold."]})
 
         # Check if sticky_sessions is valid
@@ -345,7 +377,10 @@ class LBaaSUpdateSerializer(serializers.ModelSerializer):
             if not sticky_sessions.get("cookie_name") or sticky_sessions.get("cookie_name") == "":
                 raise serializers.ValidationError({"sticky_sessions": ["Cookie name is required."]})
 
-            if not sticky_sessions.get("cookie_ttl_seconds") or 1 > sticky_sessions.get("cookie_ttl_seconds") < 9999:
+            if (
+                not isinstance(sticky_sessions.get("cookie_ttl_seconds"), int)
+                or not 0 < sticky_sessions.get("cookie_ttl_seconds") < 10000
+            ):
                 raise serializers.ValidationError({"sticky_sessions": ["Invalid cookie_ttl."]})
 
         return attrs
@@ -403,7 +438,7 @@ class LBaaSUpdateSerializer(serializers.ModelSerializer):
 
 
 class LBaaSAddVirtanceSerializer(serializers.ModelSerializer):
-    virtance_ids = serializers.ListField(required=False)
+    virtance_ids = serializers.ListField(required=True)
 
     class Meta:
         model = LBaaS
@@ -416,9 +451,12 @@ class LBaaSAddVirtanceSerializer(serializers.ModelSerializer):
             if not isinstance(v_id, int):
                 raise serializers.ValidationError({"virtance_ids": ["This field must be a list of integers."]})
 
-        list_ids = Virtance.objects.filter(user=self.instance.user, id__in=virtance_ids, is_deleted=False).values_list(
-            "id", flat=True
-        )
+        list_ids = Virtance.objects.filter(
+            user=self.instance.user,
+            id__in=virtance_ids,
+            region_id=self.instance.virtance.region_id,
+            is_deleted=False,
+        ).values_list("id", flat=True)
         for v_id in virtance_ids:
             if v_id not in list_ids:
                 raise serializers.ValidationError(f"Virtance with ID {v_id} not found.")
@@ -446,7 +484,7 @@ class LBaaSAddVirtanceSerializer(serializers.ModelSerializer):
 
 
 class LBaaSDelVirtanceSerializer(serializers.ModelSerializer):
-    virtance_ids = serializers.ListField(required=False)
+    virtance_ids = serializers.ListField(required=True)
 
     class Meta:
         model = LBaaS
@@ -459,9 +497,12 @@ class LBaaSDelVirtanceSerializer(serializers.ModelSerializer):
             if not isinstance(v_id, int):
                 raise serializers.ValidationError({"virtance_ids": ["This field must be a list of integers."]})
 
-        list_ids = Virtance.objects.filter(user=self.instance.user, id__in=virtance_ids, is_deleted=False).values_list(
-            "id", flat=True
-        )
+        list_ids = Virtance.objects.filter(
+            user=self.instance.user,
+            id__in=virtance_ids,
+            region_id=self.instance.virtance.region_id,
+            is_deleted=False,
+        ).values_list("id", flat=True)
         for v_id in virtance_ids:
             if v_id not in list_ids:
                 raise serializers.ValidationError(f"Virtance with ID {v_id} not found.")
@@ -498,52 +539,7 @@ class LBaaSAddRuleSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         forwarding_rules = attrs.get("forwarding_rules")
-
-        # Check duplicate forwarding rules for entry and target
-        if len([tuple(sorted(d.items())) for d in forwarding_rules]) != len(
-            set([tuple(sorted(d.items())) for d in forwarding_rules])
-        ):
-            raise serializers.ValidationError({"forwarding_rules": ["Duplicate forwarding rules."]})
-
-        # Check duplicate forwarding rules on entry data
-        entry_data = [f'{rule.get("entry_protcol")}_{rule.get("entry_port")}' for rule in forwarding_rules]
-        if len(entry_data) != len(set(entry_data)):
-            raise serializers.ValidationError({"forwarding_rules": ["Duplicate entry_protcol and entry_port."]})
-
-        if not all(isinstance(x, dict) for x in forwarding_rules):
-            raise serializers.ValidationError({"forwarding_rules": ["Invalid forwarding rules."]})
-        for rule in forwarding_rules:
-            if (
-                not rule.get("entry_port")
-                or not rule.get("entry_protocol")
-                or not rule.get("target_port")
-                or not rule.get("target_protocol")
-            ):
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid forwarding rules."]})
-
-            if rule.get("entry_protocol") not in [x[0] for x in LBaaSForwadRule.PROTOCOL_CHOICES]:
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid entry_protocol."]})
-
-            if not 0 < rule.get("entry_port") < 65536:
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid entry_port."]})
-
-            if rule.get("target_protocol") not in [x[0] for x in LBaaSForwadRule.PROTOCOL_CHOICES]:
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid target_protocol."]})
-
-            if not 0 < rule.get("target_port") < 65536:
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid target_port."]})
-
-            if rule.get("entry_protocol") != rule.get("target_protocol"):
-                raise serializers.ValidationError(
-                    {
-                        "forwarding_rules": [
-                            (
-                                "Entry and target protocol must be the same. "
-                                "Support for different procotols is temporarily unsupported."
-                            )
-                        ]
-                    }
-                )
+        validate_forwarding_rules(forwarding_rules)
 
         for rule in forwarding_rules:
             if LBaaSForwadRule.objects.filter(
@@ -597,52 +593,7 @@ class LBaaSUpdateRuleSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         forwarding_rules = attrs.get("forwarding_rules")
-
-        # Check duplicate forwarding rules for entry and target
-        if len([tuple(sorted(d.items())) for d in forwarding_rules]) != len(
-            set([tuple(sorted(d.items())) for d in forwarding_rules])
-        ):
-            raise serializers.ValidationError({"forwarding_rules": ["Duplicate forwarding rules."]})
-
-        # Check duplicate forwarding rules on entry data
-        entry_data = [f'{rule.get("entry_protcol")}_{rule.get("entry_port")}' for rule in forwarding_rules]
-        if len(entry_data) != len(set(entry_data)):
-            raise serializers.ValidationError({"forwarding_rules": ["Duplicate entry_protcol and entry_port."]})
-
-        if not all(isinstance(x, dict) for x in forwarding_rules):
-            raise serializers.ValidationError({"forwarding_rules": ["Invalid forwarding rules."]})
-        for rule in forwarding_rules:
-            if (
-                not rule.get("entry_port")
-                or not rule.get("entry_protocol")
-                or not rule.get("target_port")
-                or not rule.get("target_protocol")
-            ):
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid forwarding rules."]})
-
-            if rule.get("entry_protocol") not in [x[0] for x in LBaaSForwadRule.PROTOCOL_CHOICES]:
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid entry_protocol."]})
-
-            if not 0 < rule.get("entry_port") < 65536:
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid entry_port."]})
-
-            if rule.get("target_protocol") not in [x[0] for x in LBaaSForwadRule.PROTOCOL_CHOICES]:
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid target_protocol."]})
-
-            if not 0 < rule.get("target_port") < 65536:
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid target_port."]})
-
-            if rule.get("entry_protocol") != rule.get("target_protocol"):
-                raise serializers.ValidationError(
-                    {
-                        "forwarding_rules": [
-                            (
-                                "Entry and target protocol must be the same. "
-                                "Support for different procotols is temporarily unsupported."
-                            )
-                        ]
-                    }
-                )
+        validate_forwarding_rules(forwarding_rules)
 
         for rule in forwarding_rules:
             if not LBaaSForwadRule.objects.filter(
@@ -675,14 +626,16 @@ class LBaaSUpdateRuleSerializer(serializers.ModelSerializer):
         # Update old or create new forwarding rules
         for rule in forwarding_rules:
             try:
-                lbrule = LBaaSForwadRule.objects.get(
+                lbrule = LBaaSForwadRule.objects.filter(
                     lbaas=instance,
                     entry_port=rule.get("entry_port"),
                     entry_protocol=rule.get("entry_protocol"),
-                    is_deleted=False,
-                )
+                ).order_by("is_deleted").first()
+                if lbrule is None:
+                    raise LBaaSForwadRule.DoesNotExist
                 lbrule.target_port = rule.get("target_port")
                 lbrule.target_protocol = rule.get("target_protocol")
+                lbrule.is_deleted = False
                 lbrule.save()
             except LBaaSForwadRule.DoesNotExist:
                 LBaaSForwadRule.objects.create(
@@ -710,35 +663,7 @@ class LBaaSDelRuleSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         forwarding_rules = attrs.get("forwarding_rules")
-
-        # Check duplicate forwarding rules for entry and target
-        if len([tuple(sorted(d.items())) for d in forwarding_rules]) != len(
-            set([tuple(sorted(d.items())) for d in forwarding_rules])
-        ):
-            raise serializers.ValidationError({"forwarding_rules": ["Duplicate forwarding rules."]})
-
-        if not all(isinstance(x, dict) for x in forwarding_rules):
-            raise serializers.ValidationError({"forwarding_rules": ["Invalid forwarding rules."]})
-        for rule in forwarding_rules:
-            if (
-                not rule.get("entry_port")
-                or not rule.get("entry_protocol")
-                or not rule.get("target_port")
-                or not rule.get("target_protocol")
-            ):
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid forwarding rules."]})
-
-            if rule.get("entry_protocol") not in [x[0] for x in LBaaSForwadRule.PROTOCOL_CHOICES]:
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid entry_protocol."]})
-
-            if not 0 < rule.get("entry_port") < 65536:
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid entry_port."]})
-
-            if rule.get("target_protocol") not in [x[0] for x in LBaaSForwadRule.PROTOCOL_CHOICES]:
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid target_protocol."]})
-
-            if not 0 < rule.get("target_port") < 65536:
-                raise serializers.ValidationError({"forwarding_rules": ["Invalid target_port."]})
+        validate_forwarding_rules(forwarding_rules)
 
         for rule in forwarding_rules:
             if not LBaaSForwadRule.objects.filter(

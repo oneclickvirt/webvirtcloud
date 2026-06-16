@@ -1,4 +1,5 @@
 from ipaddress import IPv4Network
+from django.db import transaction
 from rest_framework import serializers
 
 from .models import FloatIP, FloatIPCounter
@@ -31,7 +32,7 @@ class FloatIPSerializer(serializers.ModelSerializer):
         virtance_id = attrs.get("virtance_id")
 
         try:
-            virtance = Virtance.objects.get(id=virtance_id, user=user, is_deleted=False)
+            virtance = Virtance.objects.select_related("region").get(id=virtance_id, user=user, is_deleted=False)
         except Virtance.DoesNotExist:
             raise serializers.ValidationError("Virtance ID does not exist")
 
@@ -44,18 +45,24 @@ class FloatIPSerializer(serializers.ModelSerializer):
         except FloatIP.DoesNotExist:
             pass
 
+        self.context["virtance"] = virtance
         return attrs
 
     def create(self, validated_data):
-        virtance_id = validated_data.get("virtance_id")
-        virtance = Virtance.objects.get(id=virtance_id)
-        floatip = FloatIP.objects.create(user=virtance.user, event=FloatIP.CREATE)
+        virtance = self.context["virtance"]
 
-        virtance.event = Virtance.ASSIGN_FLOATING_IP
-        virtance.save()
+        with transaction.atomic():
+            floatip = FloatIP.objects.create(user=virtance.user, event=FloatIP.CREATE)
 
-        ipaddress_id = assign_free_ipv4_public(virtance.id, is_float=True)
-        if ipaddress_id:
+            virtance.event = Virtance.ASSIGN_FLOATING_IP
+            virtance.save()
+
+            ipaddress_id = assign_free_ipv4_public(virtance.id, is_float=True)
+            if not ipaddress_id:
+                virtance.reset_event()
+                floatip.delete()
+                raise serializers.ValidationError("No available floating IP addresses in this region.")
+
             ipaddress = IPAddress.objects.get(id=ipaddress_id)
             ipv4_subnet = IPv4Network(f"{ipaddress.address}/{ipaddress.network.netmask}", strict=False)
 
@@ -85,6 +92,10 @@ class FloatIPActionSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         floatip = self.context.get("floatip")
+        user = self.context.get("user") or floatip.user
+
+        if floatip.ipaddress is None:
+            raise serializers.ValidationError("Floating IP has no allocated address.")
 
         if attrs.get("action") == "unassign":
             if floatip.ipaddress.virtance is None:
@@ -95,6 +106,19 @@ class FloatIPActionSerializer(serializers.Serializer):
                 raise serializers.ValidationError("This floating IP is already assigned to a Virtance.")
             if attrs.get("virtance_id") is None:
                 raise serializers.ValidationError({"virtance_id": ["This field is required."]})
+            try:
+                virtance = Virtance.objects.get(id=attrs.get("virtance_id"), user=user, is_deleted=False)
+            except Virtance.DoesNotExist:
+                raise serializers.ValidationError({"virtance_id": ["Virtance not found."]})
+            if virtance.region_id != floatip.ipaddress.network.region_id:
+                raise serializers.ValidationError({"virtance_id": ["Virtance must be in the same region."]})
+            if virtance.region.features.filter(name="floating_ip").exists() is False:
+                raise serializers.ValidationError("Floating IP is not supported in this region.")
+            if FloatIP.objects.filter(
+                ipaddress__virtance=virtance, ipaddress__is_float=True, is_deleted=False
+            ).exists():
+                raise serializers.ValidationError("Virtance already has a floating IP.")
+            self.context["virtance"] = virtance
 
         return attrs
 
@@ -104,7 +128,9 @@ class FloatIPActionSerializer(serializers.Serializer):
         virtance_id = validated_data.get("virtance_id")
 
         if action == "assign":
-            virtance = Virtance.objects.get(id=virtance_id)
+            virtance = self.context.get("virtance") or Virtance.objects.get(
+                id=virtance_id, user=floatip.user, is_deleted=False
+            )
             floatip.event = FloatIP.ASSIGN
             floatip.save()
 

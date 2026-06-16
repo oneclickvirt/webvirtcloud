@@ -10,6 +10,11 @@
 */
 
 module.exports = {
+  locals: {
+    confirm_url: '{{ confirm_url }}',
+    reset_url: '{{ reset_url }}',
+    site_url: '{{ site_url }}',
+  },
   build: {
     templates: {
       destination: {

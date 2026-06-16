@@ -8,6 +8,20 @@ from .models import Image, SnapshotCounter
 from .utils import image_error
 
 
+def _fail_image_delete(image, message):
+    image_error(image.id, message, f"delete_image_{image.type}")
+    image.reset_event()
+    return False
+
+
+def response_detail(res):
+    if res is None:
+        return "Compute returned no response."
+    if isinstance(res, dict):
+        return res.get("detail")
+    return "Compute returned an invalid response."
+
+
 @app.task
 def image_delete(image_id):
     image = Image.objects.get(pk=image_id)
@@ -17,23 +31,58 @@ def image_delete(image_id):
     if image.type == Image.SNAPSHOT or image.type == Image.BACKUP:
         for region in image.regions.all():
             computes = Compute.objects.filter(region=region, is_active=True, is_deleted=False).order_by("?")
+            deleted_or_missing = False
+            last_error = "No active compute found in region."
             for compute in computes:
                 wvcomp = WebVirtCompute(compute.token, compute.hostname)
-                res = wvcomp.get_storages()
-                if res.get("detail") is None:
-                    for storage in res.get("storages"):
-                        res = wvcomp.get_storage(storage.get("name"))
-                        if res.get("detail") is None:
-                            storage = res.get("storage")
-                            for vol in storage.get("volumes"):
-                                if vol.get("name") == image.file_name:
-                                    res = wvcomp.delete_storage_volume(storage.get("name"), vol.get("name"))
-                                    if res.get("detail") is None:
-                                        image.regions.remove(region)
-                                        break
-                if res.get("detail"):
-                    image_error(image.id, f'Region: {region}, Error:{res.get("detail")}', f"delete_image_{image.type}")
-                    return False
+                storages_res = wvcomp.get_storages()
+                error = response_detail(storages_res)
+                if error:
+                    last_error = error
+                    continue
+
+                storages = storages_res.get("storages", [])
+                if not storages:
+                    deleted_or_missing = True
+
+                inspected_storage = False
+                storage_error = False
+                volume_found = False
+                for storage_summary in storages:
+                    storage_res = wvcomp.get_storage(storage_summary.get("name"))
+                    error = response_detail(storage_res)
+                    if error:
+                        last_error = error
+                        storage_error = True
+                        continue
+
+                    inspected_storage = True
+                    storage = storage_res.get("storage") or {}
+                    for vol in storage.get("volumes", []):
+                        if vol.get("name") != image.file_name:
+                            continue
+                        volume_found = True
+                        delete_res = wvcomp.delete_storage_volume(storage.get("name"), vol.get("name"))
+                        error = response_detail(delete_res)
+                        if error:
+                            last_error = error
+                            storage_error = True
+                        else:
+                            deleted_or_missing = True
+                        break
+
+                    if deleted_or_missing is True:
+                        break
+
+                if inspected_storage is True and storage_error is False and volume_found is False:
+                    deleted_or_missing = True
+
+                if deleted_or_missing is True:
+                    image.regions.remove(region)
+                    break
+
+            if deleted_or_missing is False:
+                return _fail_image_delete(image, f"Region: {region}, Error:{last_error}")
 
         if image.regions.count() == 0:
             image.delete()

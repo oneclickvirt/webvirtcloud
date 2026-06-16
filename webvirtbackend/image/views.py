@@ -17,25 +17,22 @@ class ImageListAPI(APIView):
     def get_queryset(self):
         user = self.request.user
         i_type = self.request.query_params.get("type", None)
+        public_types = (Image.DISTRIBUTION, Image.APPLICATION)
+        user_types = (Image.CUSTOM, Image.BACKUP, Image.SNAPSHOT)
 
         if i_type:
             if i_type == Image.LBAAS:
-                i_type = None
-            if i_type in (Image.DISTRIBUTION, Image.APPLICATION):
-                queryset = Image.objects.filter(type=i_type, user=None, is_deleted=False)
+                return Image.objects.none()
+            if i_type in public_types:
+                return Image.objects.filter(type=i_type, user=None, is_deleted=False)
+            if i_type in user_types:
+                return Image.objects.filter(type=i_type, user=user, is_deleted=False)
+            return Image.objects.none()
 
-        if i_type is None:
-            queryset = Image.objects.filter(
-                ~Q(type=Image.LBAAS)
-                | Q(type=Image.APPLICATION)
-                | Q(type=Image.DISTRIBUTION)
-                | Q(type=Image.CUSTOM, user=user)
-                | Q(type=Image.BACKUP, user=user)
-                | Q(type=Image.SNAPSHOT, user=user),
-                is_deleted=False,
-            )
-
-        return queryset
+        return Image.objects.filter(
+            Q(type__in=public_types, user=None) | Q(type__in=user_types, user=user),
+            is_deleted=False,
+        )
 
     def get(self, request, *args, **kwargs):
         """
@@ -74,10 +71,10 @@ class ImageDataAPI(APIView):
         image = self.get_object()
         if image.type != Image.SNAPSHOT:
             return error_message_response("Only snapshot image can be updated.")
-        serilizator = self.class_serializer(data=request.data)
+        serilizator = self.class_serializer(image, data=request.data)
         serilizator.is_valid(raise_exception=True)
         serilizator.save()
-        serilizator = self.class_serializer(self.get_object(), many=False)
+        serilizator = self.class_serializer(image, many=False)
         return Response({"image": serilizator.data})
 
     def delete(self, request, *args, **kwargs):

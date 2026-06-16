@@ -1,0 +1,257 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "libvirt_up",
+          "legendFormat": "libvirt"
+        }
+      ],
+      "title": "Libvirt Up",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "expr": "count(libvirt_domain_info_state{domain=~\"$domain\"})",
+          "legendFormat": "domains"
+        }
+      ],
+      "title": "Domains",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "rate(libvirt_domain_info_cpu_time_total{domain=~\"$domain\"}[5m]) / 1e9",
+          "legendFormat": "{{domain}}"
+        }
+      ],
+      "title": "CPU Seconds Per Second",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "libvirt_domain_info_memory_actual{domain=~\"$domain\"} * 1024",
+          "legendFormat": "{{domain}} actual"
+        },
+        {
+          "expr": "libvirt_domain_info_memory_available{domain=~\"$domain\"} * 1024",
+          "legendFormat": "{{domain}} available"
+        }
+      ],
+      "title": "Memory",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "id": 5,
+      "targets": [
+        {
+          "expr": "rate(libvirt_domain_info_block_read_bytes_total{domain=~\"$domain\"}[5m])",
+          "legendFormat": "{{domain}} {{dev}} read"
+        },
+        {
+          "expr": "rate(libvirt_domain_info_block_write_bytes_total{domain=~\"$domain\"}[5m])",
+          "legendFormat": "{{domain}} {{dev}} write"
+        }
+      ],
+      "title": "Disk Throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "id": 6,
+      "targets": [
+        {
+          "expr": "rate(libvirt_domain_info_net_rx_bytes_total{domain=~\"$domain\"}[5m])",
+          "legendFormat": "{{domain}} {{dev}} rx"
+        },
+        {
+          "expr": "rate(libvirt_domain_info_net_tx_bytes_total{domain=~\"$domain\"}[5m])",
+          "legendFormat": "{{domain}} {{dev}} tx"
+        }
+      ],
+      "title": "Network Throughput",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": [
+    "webvirtcloud",
+    "libvirt"
+  ],
+  "templating": {
+    "list": [
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(libvirt_domain_info_state, domain)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Domain",
+        "multi": true,
+        "name": "domain",
+        "query": {
+          "query": "label_values(libvirt_domain_info_state, domain)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "WebVirtCloud Libvirt",
+  "uid": "webvirtcloud-libvirt",
+  "version": 1,
+  "weekStart": ""
+}

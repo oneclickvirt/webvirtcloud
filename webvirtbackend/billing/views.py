@@ -1,4 +1,3 @@
-from weasyprint import HTML
 from django.utils import timezone
 from django.http import HttpResponse
 from django.template.loader import get_template
@@ -169,8 +168,8 @@ class InvoicePdfAPI(APIView):
         html_content = template.render(context)
 
         response = HttpResponse(content_type="application/pdf")
-        response["Content-Disposition"] = (
-            f"attachment; filename='inovoice-{invoice.create.year}-{invoice.create.month}.pdf'"
-        )
+        response["Content-Disposition"] = f"attachment; filename='invoice-{invoice.create.year}-{invoice.create.month}.pdf'"
+        from weasyprint import HTML
+
         HTML(string=html_content).write_pdf(response)
         return response

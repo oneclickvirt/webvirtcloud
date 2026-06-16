@@ -4,6 +4,7 @@ import { API_DOMAIN, API_PREFIX } from '@/shared/constants';
 
 const request = ky.create({
   prefixUrl: `${API_DOMAIN}${API_PREFIX}`,
+  timeout: 30000,
   hooks: {
     beforeRequest: [
       (request) => {
@@ -24,7 +25,9 @@ const request = ky.create({
         if (response.status === 401) {
           window.localStorage.removeItem('token');
 
-          window.location.href = '/sign-in';
+          if (window.location.pathname !== '/sign-in') {
+            window.location.href = '/sign-in';
+          }
         }
       },
     ],

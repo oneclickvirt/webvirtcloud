@@ -41,7 +41,9 @@ cd webvirtcloud
 
     To configure TLS for the web server, copy either the `Caddyfile.selfsigned` or `Caddyfile.letsencrypt` and without TLS `Caddyfile.noncert` template to `Caddyfile`. 
 
-    > **NOTE**: Caddy does not support TLS for bare IP addresses. If you need TLS, you can use a domain name with a service like [nip.io](https://nip.io) as a workaround.
+    > **NOTE**: Caddy does not request public certificates for bare IP addresses. If you need public HTTPS, use a domain name with a service like [nip.io](https://nip.io) as a workaround.
+    >
+    > **中文说明**：如果控制器只在内网使用，可以直接使用内网 IP，并优先选择 `Caddyfile.noncert`。需要 HTTPS 时，安装脚本会为裸 IP 生成带 IP SAN 的自签名证书；公网 HTTPS 请使用真实域名或 `<ip>.nip.io`。
 
     For example, if your IP address is 192.168.0.114, you can use `192-168-0-114.nip.io` as your domain name. Below, we demonstrate how to set up a self-signed certificate for the domain `webvirtcloud-192-168-0-114.nip.io`:
 
@@ -72,6 +74,19 @@ Enter your domain or IP address (only HTTP). Default: localhost
 Enter: webvirtcloud-192-168-0-114.nip.io
 ```
 
+LAN-only example / 内网部署示例:
+
+```bash
+Enter your domain or IP address (only HTTP). Default: localhost
+Enter: 192.168.1.10
+```
+
+Unattended installation can also use a LAN IP / 无人值守安装也可以直接使用内网 IP:
+
+```bash
+WEBVIRT_DOMAIN=192.168.1.10 bash scripts/install_webvirt_cloud.sh --non-interactive
+```
+
 4. Start WebVirtCloud:
 
 ```bash
@@ -87,12 +102,11 @@ For first-time users, refer to the [Features](#features) section to explore the 
 
 Ensure your firewall allows access to ports 80 (HTTP) and 443 (HTTPS) for the WebVirtCloud interface.
 
-## Default Credentials
+## Initial Admin Credentials
 
-- **Username:** `admin@spiritlhl.net`
-- **Password:** `admin`
+The first startup creates the admin account from `WEBVIRT_ADMIN_EMAIL` and `WEBVIRT_ADMIN_PASSWORD` in `env.local`. If they are missing, `./webvirtcloud.sh start` generates secure values and prints the password once during database initialization.
 
-> **Warning:** It is critical to change the default credentials immediately after the first login to ensure security.
+> **Warning:** Store the generated password securely. Do not commit `env.local`.
 
 ## Update the Controller
 
@@ -108,6 +122,18 @@ If new features or templates are added:
 ./webvirtcloud.sh loaddata
 ```
 
+## Uninstall the Controller
+
+```bash
+./webvirtcloud.sh uninstall
+```
+
+Volumes are preserved by default. To delete database volumes too:
+
+```bash
+WEBVIRT_UNINSTALL_DELETE_VOLUMES=true ./webvirtcloud.sh uninstall
+```
+
 ## Additional Settings
 
 The `env.local` file is used to store environment variables. You can edit this file to define your environment-specific configurations. Ensure environment variables are formatted consistently, as shown below:
@@ -116,8 +142,8 @@ The `env.local` file is used to store environment variables. You can edit this f
 # Email environment variables
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
-EMAIL_HOST_USER=admin
-EMAIL_HOST_PASSWORD=admin
+EMAIL_HOST_USER=
+EMAIL_HOST_PASSWORD=
 EMAIL_USE_TLS=True
 EMAIL_FROM="WebVirtCloud <noreply@gmail.com>"
 ```

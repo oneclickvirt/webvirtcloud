@@ -57,7 +57,7 @@ class ProjectDataAPI(APIView):
         except ValueError:
             raise Http404
         try:
-            return Project.objects.get(uuid=uuid, user=user)
+            return Project.objects.get(uuid=uuid, user=user, is_deleted=False)
         except Project.DoesNotExist:
             raise Http404
 

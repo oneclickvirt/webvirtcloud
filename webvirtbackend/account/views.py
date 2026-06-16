@@ -43,12 +43,14 @@ class Login(ObtainAuthToken):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data.get("user")
 
-        try:
-            token = Token.objects.get(user=user, scope=Token.WRITE_SCOPE, is_obtained=True)
-        except Token.DoesNotExist:
+        token = Token.objects.filter(user=user, scope=Token.WRITE_SCOPE, is_obtained=True).order_by("-created").first()
+        if token is None:
             token = Token.objects.create(
                 user=user, scope=Token.WRITE_SCOPE, is_obtained=True, name="Obtained auth token"
             )
+        elif token.is_expired():
+            token.expired = None
+            token.rotate_key()
 
         return Response({"token": token.key})
 
@@ -119,8 +121,8 @@ class ResetPasswordHash(APIView):
                   required: true
                   type: string
         """
-        if User.objects.filter(hash=hash, is_active=True).exists():
-            user = User.objects.get(hash=hash)
+        user = User.objects.filter(hash=hash, is_active=True).first()
+        if user:
             serializer = self.serializer_class(user, data=request.data)
             serializer.is_valid(raise_exception=True)
             serializer.save()
@@ -144,15 +146,15 @@ class VerifyResendEmail(APIView):
 
 
 class VerifyHashEmail(APIView):
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (AllowAny,)
 
     def get(self, request, *args, **kwargs):
         """
         Verify Email by Hash
         ---
         """
-        if User.objects.filter(hash=kwargs.get("hash"), is_email_verified=False, is_active=True).exists():
-            user = User.objects.get(hash=kwargs.get("hash"))
+        user = User.objects.filter(hash=kwargs.get("hash"), is_email_verified=False, is_active=True).first()
+        if user:
             user.email_verify()
             if settings.VERIFICATION_ENABLED is False:
                 user.verify()

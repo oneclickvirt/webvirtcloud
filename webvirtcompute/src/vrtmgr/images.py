@@ -35,12 +35,16 @@ class Template(object):
         # Download image
         if image_exist is False:
             try:
-                r = requests.get(self.url, stream=True)
+                r = requests.get(self.url, stream=True, timeout=(10, 300))
+                r.raise_for_status()
                 with open(self.path, "wb") as f:
-                    for chunk in r.iter_content(chunk_size=128):
-                        f.write(chunk)
+                    for chunk in r.iter_content(chunk_size=1024 * 1024):
+                        if chunk:
+                            f.write(chunk)
             except Exception as err:
                 err_msg = err
+                if os.path.exists(self.path):
+                    os.remove(self.path)
 
             if err_msg is None:
                 if self.md5sum != md5sum(self.path):

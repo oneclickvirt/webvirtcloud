@@ -54,13 +54,14 @@ export function FirewallVirtances({ uuid }: { uuid: string }) {
       queryKey: firewallQueries.virtanceEvent(event.id),
       queryFn: () => getVirtance(event.id),
       refetchInterval: (query) => {
-        if (query.state.data && query.state.data.virtance.event === null) {
+        const data = query.state.data as { virtance: Virtance } | undefined;
+        if (data && data.virtance.event === null) {
           queryClient.setQueryData<Virtance[]>(
             firewallQueries.virtances(uuid),
             (previousData) => {
               if (previousData) {
                 return previousData.map((virtance: Virtance) =>
-                  virtance.id === event.id ? query.state.data?.virtance : virtance,
+                  virtance.id === event.id ? data.virtance : virtance,
                 );
               }
             },

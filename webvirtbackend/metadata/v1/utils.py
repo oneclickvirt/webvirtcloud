@@ -13,10 +13,7 @@ class MetadataMixin(View):
 
         # Get by header ID
         if x_instance_id:
-            try:
-                self.virtance = Virtance.objects.get(pk=x_instance_id, is_deleted=False)
-            except Virtance.DoesNotExist:
-                pass
+            self.virtance = Virtance.objects.filter(pk=x_instance_id, is_deleted=False).first()
 
         # Get by IP address
         if not x_instance_id:
@@ -25,11 +22,13 @@ class MetadataMixin(View):
             else:
                 remote_address = request.META.get("REMOTE_ADDR")
 
-            try:
-                ip = IPAddress.objects.get(address=remote_address, virtance__is_deleted=False)
-                if ip.virtance:
-                    self.virtance = ip.virtance
-            except IPAddress.DoesNotExist:
-                pass
+            remote_address = remote_address.strip() if remote_address else remote_address
+            ip = (
+                IPAddress.objects.select_related("virtance")
+                .filter(address=remote_address, virtance__is_deleted=False)
+                .first()
+            )
+            if ip and ip.virtance:
+                self.virtance = ip.virtance
 
         return super(MetadataMixin, self).dispatch(request, *args, **kwargs)

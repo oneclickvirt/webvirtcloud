@@ -20,34 +20,41 @@ const schema = z.object({
       z.object({
         entry_port: z.coerce
           .number({ invalid_type_error: 'Only digits' })
-          .min(1, 'Must be 1 or more'),
+          .min(1, 'Must be 1 or more')
+          .max(65535, 'Must be 65535 or less'),
         entry_protocol: z.string().min(1, 'Entry protocol is required'),
         target_port: z.coerce
           .number({ invalid_type_error: 'Only digits' })
-          .min(1, 'Must be 1 or more'),
+          .min(1, 'Must be 1 or more')
+          .max(65535, 'Must be 65535 or less'),
         target_protocol: z.string().min(1, 'Target protocol is required'),
       }),
     )
+    .min(1, 'At least one forwarding rule is required')
     .superRefine((items, context) => {
-      const lastOccurrenceMap = new Map();
+      const lastOccurrenceMap = new Map<string, number>();
 
-      // Track the last occurrence of each entry_port
       items.forEach((item, i) => {
-        if (lastOccurrenceMap.has(item.entry_port)) {
-          lastOccurrenceMap.set(item.entry_port, i);
-        } else {
-          lastOccurrenceMap.set(item.entry_port, i);
-        }
+        lastOccurrenceMap.set(`${item.entry_protocol}:${item.entry_port}`, i);
       });
 
-      // Add issues to the last occurrence of each duplicate entry_port
       items.forEach((item, i) => {
-        const lastIndex = lastOccurrenceMap.get(item.entry_port);
+        const lastIndex = lastOccurrenceMap.get(`${item.entry_protocol}:${item.entry_port}`);
         if (lastIndex !== i && lastIndex !== undefined) {
           context.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'Duplicate port',
+            message: 'Duplicate entry protocol and port',
             path: [lastIndex, 'entry_port'],
+          });
+        }
+      });
+
+      items.forEach((item, i) => {
+        if (item.entry_protocol !== item.target_protocol) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Target protocol must match entry protocol',
+            path: [i, 'target_protocol'],
           });
         }
       });

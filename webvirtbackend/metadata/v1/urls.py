@@ -37,7 +37,6 @@ urlpatterns = [
     re_path(r"user-data$", MetadataUserData.as_view(), name="metadata_v1_user_data"),
     re_path(r"vendor-data$", MetadataVendorData.as_view(), name="metadata_v1_vendor_data"),
     re_path(r"public-keys$", MetadataPublicKeys.as_view(), name="metadata_v1_public_keys"),
-    re_path(r"public-keys$", MetadataPublicKeys.as_view(), name="metadata_v1_public_keys"),
     re_path(r"interfaces/$", MetadataInterfaces.as_view(), name="metadata_v1_interfaces"),
     re_path(r"interfaces/public/$", MetadataInterfacesPublic.as_view(), name="metadata_v1_interfaces_public"),
     re_path(
@@ -120,5 +119,5 @@ urlpatterns = [
         name="metadata_v1_interfaces_private_ipv4_gateway",
     ),
     re_path(r"dns/$", MetadataDNS.as_view(), name="metadata_v1_dns"),
-    re_path(r"dns/nameservers$", MetadataDNSNameservers.as_view(), name="metadata_v1_dns_mameservers"),
+    re_path(r"dns/nameservers$", MetadataDNSNameservers.as_view(), name="metadata_v1_dns_nameservers"),
 ]

@@ -23,36 +23,45 @@ git clone https://github.com/oneclickvirt/webvirtcloud.git
 cd webvirtcloud/webvirtbackend/
 ```
 
-3. Build the Docker image:
+3. Create local development secrets:
+```bash
+cp .env.example .env
+# Edit .env and replace every change-me value before starting containers.
+# Add any extra development hostnames to DJANGO_ALLOWED_HOSTS.
+```
+
+4. Build the Docker image:
 ```bash
 docker compose build
 ```
 
-4. Run the Docker container:
+5. Run the Docker container:
 ```bash
 docker compose up -d
 ```
 
-5. Run the database migrations:
+6. Run the database migrations:
 ```bash
 docker compose exec backend python3 manage.py migrate
 ```
 
-6. Load the initial data:
+7. Load the initial data:
 ```bash
 docker compose exec backend python3 manage.py loaddata initial_data
 ```
 
-7. Load admin user:
+8. Create an admin user:
 ```bash
-docker compose exec backend python3 manage.py loaddata account/fixtures/admin.json
+ADMIN_PASSWORD="$(openssl rand -hex 18)"
+docker compose exec -T \
+  -e WEBVIRT_ADMIN_EMAIL=admin@example.com \
+  -e WEBVIRT_ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+  backend python3 manage.py first_init_data
+echo "Admin password: $ADMIN_PASSWORD"
 ```
 
-8. Access the admin site:
-Open your web browser and go to `http://localhost:8000/admin/`. You can log in with the following credentials:
-
-* Username: `admin@spiritlhl.net`
-* Password: `admin`
+9. Access the admin site:
+Open your web browser and go to `http://localhost:8000/admin/` and log in with the admin email and password you supplied.
 
 ## Settings ##
 
@@ -68,21 +77,21 @@ docker compose exec backend python3 manage.py loaddata account/fixtures/user.jso
 
 ### Swagger ###
 
-The Swagger API documentation is available at `http://localhost:8000/swagger/`.
+When `DJANGO_SETTINGS_MODULE=webvirtcloud.settings.develop`, Swagger API documentation is available at `http://localhost:8000/swagger/`. Production settings keep Swagger and ReDoc routes disabled.
 
-### Credntials ###
+### Credentials ###
 
-The API endpoints are available at `http://localhost:8000/api/`. You can use them to create, delete, and manage virtual machines. You can log in with the following credentials:
-
-* Username: `user@spiritlhl.net`
-* Password: `1qaz2wsx`
-* Token: `fcc69bfad35527d087bf22a8a84a4f6c3b75387877c78ae3050e9e8036ef`
+The API endpoints are available at `http://localhost:8000/api/`. Use the token returned by the login endpoint or create a development token in your local database.
 
 Example API requests:
 
 ```bash
-curl -H "Authorization: Bearer fcc69bfad35527d087bf22a8a84a4f6c3b75387877c78ae3050e9e8036ef" http://localhost:8000/api/v1/virtances/
+curl -H "Authorization: Bearer <token>" http://localhost:8000/api/v1/virtances/
 ```
+
+Tokens with an `expired` date earlier than the current local date are rejected by the API authentication layer. Password resets and password changes rotate all obtained login tokens for the affected user.
+
+Development CORS is restricted to `DJANGO_CORS_ALLOWED_ORIGINS` by default. Set `DJANGO_CORS_ALLOW_ALL=true` only for isolated local debugging.
 
 ### Contributing ###
 

@@ -307,7 +307,23 @@ export function Routing() {
             </Suspense>
           }
         />
+        <Route
+          path="/reset-password/:hash"
+          element={
+            <Suspense>
+              <ResetPassword />
+            </Suspense>
+          }
+        />
       </Route>
+      <Route
+        path="/confirm-email/:token"
+        element={
+          <Suspense>
+            <ConfirmEmail />
+          </Suspense>
+        }
+      />
       <Route path="*" element={<Navigate to="/sign-in" />} />
     </Routes>
   );

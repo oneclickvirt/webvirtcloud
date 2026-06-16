@@ -47,7 +47,7 @@ class AdminVirtanceDataView(AdminTemplateView):
 
         if virtance.compute and virtance.event != Virtance.CREATE:
             wvcomp = WebVirtCompute(virtance.compute.token, virtance.compute.hostname)
-            res_status = wvcomp.status_virtance(virtance.id)
+            res_status = wvcomp.status_virtance(virtance.id) or {}
             if res_status.get("detail"):
                 messages.error(self.request, res_status.get("detail"))
 
@@ -85,7 +85,7 @@ class AdminVirtanceConsoleView(AdminTemplateView):
     template_name = "admin/virtance/console.html"
 
     def get_object(self):
-        return get_object_or_404(Virtance, pk=self.kwargs["pk"])
+        return get_object_or_404(Virtance, pk=self.kwargs["pk"], is_deleted=False)
 
     def get(self, request, *args, **kwargs):
         virtance = self.get_object()
@@ -97,9 +97,17 @@ class AdminVirtanceConsoleView(AdminTemplateView):
         virtance = self.get_object()
         context = super().get_context_data(**kwargs)
 
-        wvcomp = WebVirtCompute(virtance.compute.token, virtance.compute.hostname)
-        res = wvcomp.get_virtance_vnc(virtance.id)
-        vnc_password = res.get("vnc_password")
+        vnc_password = None
+        if virtance.compute is None:
+            messages.error(self.request, "No compute assigned to this virtance")
+        else:
+            wvcomp = WebVirtCompute(virtance.compute.token, virtance.compute.hostname)
+            res = wvcomp.get_virtance_vnc(virtance.id) or {}
+            if res.get("detail"):
+                messages.error(self.request, res.get("detail"))
+            else:
+                vnc_password = res.get("vnc_password")
+
         console_host = settings.NOVNC_URL
         console_port = settings.NOVNC_PORT
 
@@ -112,7 +120,7 @@ class AdminVirtanceConsoleView(AdminTemplateView):
 
 class AdminVirtanceResetEventAction(AdminView):
     def get_object(self):
-        return get_object_or_404(Virtance, pk=self.kwargs["pk"])
+        return get_object_or_404(Virtance, pk=self.kwargs["pk"], is_deleted=False)
 
     def post(self, request, *args, **kwargs):
         virtance = self.get_object()
@@ -122,7 +130,7 @@ class AdminVirtanceResetEventAction(AdminView):
 
 class AdminVirtanceRecreateAction(AdminView):
     def get_object(self):
-        return get_object_or_404(Virtance, pk=self.kwargs["pk"])
+        return get_object_or_404(Virtance, pk=self.kwargs["pk"], is_deleted=False)
 
     def post(self, request, *args, **kwargs):
         virtance = self.get_object()
@@ -134,7 +142,7 @@ class AdminVirtanceRecreateAction(AdminView):
 
 class AdminVirtancePowerOnAction(AdminView):
     def get_object(self):
-        return get_object_or_404(Virtance, pk=self.kwargs["pk"])
+        return get_object_or_404(Virtance, pk=self.kwargs["pk"], is_deleted=False)
 
     def post(self, request, *args, **kwargs):
         virtance = self.get_object()
@@ -146,7 +154,7 @@ class AdminVirtancePowerOnAction(AdminView):
 
 class AdminVirtancePowerOffAction(AdminView):
     def get_object(self):
-        return get_object_or_404(Virtance, pk=self.kwargs["pk"])
+        return get_object_or_404(Virtance, pk=self.kwargs["pk"], is_deleted=False)
 
     def post(self, request, *args, **kwargs):
         virtance = self.get_object()
@@ -156,9 +164,9 @@ class AdminVirtancePowerOffAction(AdminView):
         return redirect(reverse("admin_virtance_data", args=[kwargs.get("pk")]))
 
 
-class AdminVirtancePowerCyrcleAction(AdminView):
+class AdminVirtancePowerCycleAction(AdminView):
     def get_object(self):
-        return get_object_or_404(Virtance, pk=self.kwargs["pk"])
+        return get_object_or_404(Virtance, pk=self.kwargs["pk"], is_deleted=False)
 
     def post(self, request, *args, **kwargs):
         virtance = self.get_object()
@@ -166,3 +174,6 @@ class AdminVirtancePowerCyrcleAction(AdminView):
         virtance.save()
         action_virtance.delay(virtance.id, "power_cycle")
         return redirect(reverse("admin_virtance_data", args=[kwargs.get("pk")]))
+
+
+AdminVirtancePowerCyrcleAction = AdminVirtancePowerCycleAction

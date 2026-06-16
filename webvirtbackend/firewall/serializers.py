@@ -34,9 +34,11 @@ class PortsField(serializers.Field):
         if match:
             start_port = int(match.group(1))
             end_port = int(match.group(2)) if match and match.group(2) else None
-            if not end_port and (start_port < -1 or start_port > 65535):
+            if end_port is None and not 0 <= start_port <= 65535:
                 raise serializers.ValidationError("Invalid port number. Use number from 0 to 65535.")
-            if (start_port < 1 or start_port > 65535) and end_port and (end_port < 1 or end_port > 65535):
+            if end_port is not None and (
+                start_port < 1 or start_port > 65535 or end_port < 1 or end_port > 65535 or start_port > end_port
+            ):
                 raise serializers.ValidationError("Invalid ports range. Use 1-65535.")
             return data
 
@@ -160,7 +162,7 @@ class FirewallSerializer(serializers.ModelSerializer):
 
         # Check virtance already assigned
         for v_id in virtance_ids:
-            if FirewallVirtance.objects.filter(firewall=self.instance, virance_id=v_id).exists():
+            if self.instance and FirewallVirtance.objects.filter(firewall=self.instance, virtance_id=v_id).exists():
                 raise serializers.ValidationError(f"Virtance with ID {v_id} is already assigned firewall.")
 
         return attrs
@@ -233,18 +235,18 @@ class FirewallSerializer(serializers.ModelSerializer):
                 out_rule.delete()
 
             # Create new outbound rules
-            for in_rule in inbound_rules:
-                if in_rule.get("protocol") == Rule.ICMP:
-                    in_rule["ports"] = 0
+            for out_rule in outbound_rules:
+                if out_rule.get("protocol") == Rule.ICMP:
+                    out_rule["ports"] = 0
 
                 rule = Rule.objects.create(
                     firewall=instance,
                     direction=Rule.OUTBOUND,
-                    protocol=in_rule.get("protocol"),
+                    protocol=out_rule.get("protocol"),
                     action=Rule.ACCEPT,
-                    ports=in_rule.get("ports", 0),
+                    ports=out_rule.get("ports", 0),
                 )
-                for cidr in list(set(in_rule.get("sources").get("addresses"))):
+                for cidr in list(set(out_rule.get("destinations").get("addresses"))):
                     if "/" in cidr:
                         address = cidr.split("/")[0]
                         prefix = cidr.split("/")[1]
@@ -258,10 +260,12 @@ class FirewallSerializer(serializers.ModelSerializer):
                     )
 
         # Update rules for virtances
-        for fw_to_virt in FirewallVirtance.objects.filter(firewall=instance):
+        for fw_to_virt in FirewallVirtance.objects.filter(
+            firewall=instance, virtance__user=instance.user, virtance__is_deleted=False
+        ).select_related("virtance"):
             instance.event = Firewall.UPDATE
             instance.save()
-            virtance = Virtance.objects.get(id=fw_to_virt.virtance.id)
+            virtance = fw_to_virt.virtance
             virtance.event = Virtance.FIREWALL_ATTACH
             virtance.save()
             firewall_update.delay(instance.id, virtance.id)
@@ -420,7 +424,7 @@ class FirewallSerializer(serializers.ModelSerializer):
 
         # Create Virtance links to firewall
         for virtance_id in list(set(virtance_ids)):
-            FirewallVirtance.create(
+            FirewallVirtance.objects.create(
                 firewall=firewall,
                 virtance_id=virtance_id,
             )
@@ -522,10 +526,12 @@ class FirewallAddRuleSerializer(serializers.Serializer):
                     )
 
         # Update rules for virtances
-        for fw_to_virt in FirewallVirtance.objects.filter(firewall=instance):
+        for fw_to_virt in FirewallVirtance.objects.filter(
+            firewall=instance, virtance__user=instance.user, virtance__is_deleted=False
+        ).select_related("virtance"):
             instance.event = Firewall.UPDATE
             instance.save()
-            virtance = Virtance.objects.get(id=fw_to_virt.virtance.id)
+            virtance = fw_to_virt.virtance
             virtance.event = Virtance.FIREWALL_ATTACH
             virtance.save()
             firewall_update.delay(instance.id, virtance.id)
@@ -595,10 +601,12 @@ class FirewallDelRuleSerializer(serializers.Serializer):
                 rule.delete()
 
         # Update rules for virtances
-        for fw_to_virt in FirewallVirtance.objects.filter(firewall=instance):
+        for fw_to_virt in FirewallVirtance.objects.filter(
+            firewall=instance, virtance__user=instance.user, virtance__is_deleted=False
+        ).select_related("virtance"):
             instance.event = Firewall.UPDATE
             instance.save()
-            virtance = Virtance.objects.get(id=fw_to_virt.virtance.id)
+            virtance = fw_to_virt.virtance
             virtance.event = Virtance.FIREWALL_ATTACH
             virtance.save()
             firewall_update.delay(instance.id, virtance.id)
@@ -638,7 +646,7 @@ class FirewallAddVirtanceSerializer(serializers.Serializer):
         for virtance_id in virtance_ids:
             instance.event = Firewall.UPDATE
             instance.save()
-            virtance = Virtance.objects.get(id=virtance_id)
+            virtance = Virtance.objects.get(id=virtance_id, user=instance.user, is_deleted=False)
             virtance.event = Virtance.FIREWALL_ATTACH
             virtance.save()
             firewall_attach.delay(instance.id, virtance.id)
@@ -657,7 +665,12 @@ class FirewallDelVirtanceSerializer(serializers.Serializer):
                 raise serializers.ValidationError({"virtance_ids": ["This field must be a list of integers."]})
 
         for v_id in virtance_ids:
-            if not FirewallVirtance.objects.filter(firewall=self.instance, virtance_id=v_id).exists():
+            if not FirewallVirtance.objects.filter(
+                firewall=self.instance,
+                virtance_id=v_id,
+                virtance__user=self.instance.user,
+                virtance__is_deleted=False,
+            ).exists():
                 raise serializers.ValidationError(f"Virtance with ID {v_id} doesn't have assigned firewall.")
 
         return attrs
@@ -668,7 +681,7 @@ class FirewallDelVirtanceSerializer(serializers.Serializer):
         for virtance_id in virtance_ids:
             instance.event = Firewall.UPDATE
             instance.save()
-            virtance = Virtance.objects.get(id=virtance_id)
+            virtance = Virtance.objects.get(id=virtance_id, user=instance.user, is_deleted=False)
             virtance.event = Virtance.FIREWALL_DETACH
             virtance.save()
             firewall_detach.delay(instance.id, virtance.id)
