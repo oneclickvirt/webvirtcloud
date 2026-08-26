@@ -41,26 +41,18 @@ export type Virtance = {
     regions: string[];
   };
   networks: {
-    v4: [
-      {
-        address: string;
-        netmask: string;
-        gateway: string;
-        type: 'private';
-      },
-      {
-        address: string;
-        netmask: string;
-        gateway: string;
-        type: 'public';
-      },
-      {
-        address: string;
-        netmask: string;
-        gateway: string;
-        type: 'compute';
-      },
-    ];
+    v4: {
+      address: string;
+      netmask: string;
+      gateway: string;
+      type: 'public' | 'private' | 'compute';
+    }[];
+    v6: {
+      address: string;
+      prefix: number;
+      gateway: string;
+      type: 'public' | 'private' | 'compute';
+    }[];
   };
   region: {
     slug: string;

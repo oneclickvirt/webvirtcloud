@@ -57,15 +57,21 @@ class AdminVirtanceDataView(AdminTemplateView):
             if status == "shutoff":
                 virtance.inactive()
 
-        ipv4public = IPAddress.objects.filter(virtance=virtance, network__type=Network.PUBLIC).first()
+        ipv4public = IPAddress.objects.filter(
+            virtance=virtance, network__type=Network.PUBLIC, network__version=Network.IPv4
+        ).first()
         if ipv4public is None:
             messages.error(self.request, "No public IP address assigned to this virtance")
 
-        ipv4private = IPAddress.objects.filter(virtance=virtance, network__type=Network.PRIVATE).first()
+        ipv4private = IPAddress.objects.filter(
+            virtance=virtance, network__type=Network.PRIVATE, network__version=Network.IPv4
+        ).first()
         if ipv4private is None:
             messages.error(self.request, "No private IP address assigned to this virtance")
 
-        ipv4compute = IPAddress.objects.filter(virtance=virtance, network__type=Network.COMPUTE).first()
+        ipv4compute = IPAddress.objects.filter(
+            virtance=virtance, network__type=Network.COMPUTE, network__version=Network.IPv4
+        ).first()
         if ipv4compute is None:
             messages.error(self.request, "No compute IP address assigned to this virtance")
 

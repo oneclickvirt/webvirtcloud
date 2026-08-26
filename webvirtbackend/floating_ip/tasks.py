@@ -50,7 +50,9 @@ def assign_floating_ip(floating_ip_id, virtance_id):
         _record_floatip_virtance_error(floatip, virtance, message, "assign_floating_ip")
         return
     ipv4_float = IPAddress.objects.get(id=ipaddress.id)
-    ipv4_compute = IPAddress.objects.filter(virtance=virtance, network__type=Network.COMPUTE).first()
+    ipv4_compute = IPAddress.objects.filter(
+        virtance=virtance, network__type=Network.COMPUTE, network__version=Network.IPv4
+    ).first()
     if virtance.compute is None:
         _record_floatip_virtance_error(
             floatip, virtance, "Virtance has no compute assigned.", "assign_floating_ip"
@@ -101,7 +103,9 @@ def unassign_floating_ip(floating_ip_id, virtance_reset_event=True):
         _reset_floatip_event(floatip)
         return
     ipv4_float = IPAddress.objects.get(id=ipaddress.id)
-    ipv4_compute = IPAddress.objects.filter(virtance=virtance, network__type=Network.COMPUTE).first()
+    ipv4_compute = IPAddress.objects.filter(
+        virtance=virtance, network__type=Network.COMPUTE, network__version=Network.IPv4
+    ).first()
     if virtance.compute is None:
         _record_floatip_virtance_error(
             floatip, virtance, "Virtance has no compute assigned.", "unassign_floating_ip"
@@ -157,7 +161,9 @@ def reassign_floating_ip(floating_ip_id, virtance_id):
     virtance_old.event = Virtance.UNASSIGN_FLOATING_IP
     virtance_old.save()
 
-    ipv4_compute = IPAddress.objects.filter(virtance=virtance_old, network__type=Network.COMPUTE).first()
+    ipv4_compute = IPAddress.objects.filter(
+        virtance=virtance_old, network__type=Network.COMPUTE, network__version=Network.IPv4
+    ).first()
     if virtance_old.compute is None:
         _record_floatip_virtance_error(
             floatip, virtance_old, "Old virtance has no compute assigned.", "reassign_floating_ip"
@@ -190,7 +196,9 @@ def reassign_floating_ip(floating_ip_id, virtance_id):
 
         virtance_old.reset_event()
 
-        ipv4_compute_new = IPAddress.objects.filter(virtance=virtance_new, network__type=Network.COMPUTE).first()
+        ipv4_compute_new = IPAddress.objects.filter(
+            virtance=virtance_new, network__type=Network.COMPUTE, network__version=Network.IPv4
+        ).first()
         if virtance_new.compute is None:
             _record_floatip_virtance_error(
                 floatip, virtance_new, "New virtance has no compute assigned.", "reassign_floating_ip"
@@ -249,7 +257,9 @@ def delete_floating_ip(floating_ip_id):
         virtance = ipaddress.virtance
         virtance.event = Virtance.UNASSIGN_FLOATING_IP
         virtance.save()
-        ipv4_compute = IPAddress.objects.filter(virtance=virtance, network__type=Network.COMPUTE).first()
+        ipv4_compute = IPAddress.objects.filter(
+            virtance=virtance, network__type=Network.COMPUTE, network__version=Network.IPv4
+        ).first()
         if virtance.compute is None:
             error = True
             _record_floatip_virtance_error(

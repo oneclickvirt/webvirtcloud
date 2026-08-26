@@ -1,4 +1,12 @@
-export type RegionFeature = 'backup' | 'snapshot';
+export type RegionFeature =
+  | 'backup'
+  | 'snapshot'
+  | 'ipv6'
+  | 'resize'
+  | 'volume'
+  | 'one_click'
+  | 'floating_ip'
+  | 'load_balancer';
 
 export type Region = {
   available: boolean;

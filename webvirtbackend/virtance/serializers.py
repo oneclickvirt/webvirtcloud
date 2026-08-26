@@ -1,10 +1,13 @@
 import re
+from django.db import transaction
 from django.db.models import Q
 from rest_framework import serializers
 
 from size.models import Size
 from image.models import Image
 from region.models import Region
+from network.helper import assign_free_ipv6_public
+from network.ipv6 import ipv6_prefix_length
 from network.models import IPAddress
 from keypair.models import KeyPair, KeyPairVirtance
 from size.serializers import SizeSerializer
@@ -111,7 +114,7 @@ class VirtanceSerializer(serializers.ModelSerializer):
                 v6.append(
                     {
                         "address": ip.address,
-                        "prefix": ip.network.netmask,
+                        "prefix": ipv6_prefix_length(ip.network.netmask),
                         "gateway": ip.network.gateway,
                         "type": ip.network.type,
                     }
@@ -176,6 +179,7 @@ class CreateVirtanceSerializer(serializers.Serializer):
         region = attrs.get("region")
         backups = attrs.get("backups")
         keypairs = attrs.get("keypairs")
+        ipv6 = attrs.get("ipv6")
 
         # Check if keypairs are active
         if keypairs:
@@ -226,6 +230,9 @@ class CreateVirtanceSerializer(serializers.Serializer):
             if check_image.disk_size > check_size.disk:
                 raise serializers.ValidationError({"image": ["Image disk size is bigger than size choosed."]})
 
+        if ipv6 is True and check_region.features.filter(name="ipv6").exists() is False:
+            raise serializers.ValidationError({"ipv6": ["IPv6 is not available in the region."]})
+
         return attrs
 
     def create(self, validated_data):
@@ -244,35 +251,36 @@ class CreateVirtanceSerializer(serializers.Serializer):
         if template is None:
             template = self._get_template(image_id_or_slug)
 
-        if template.type == Image.SNAPSHOT or template.type == Image.BACKUP:
-            template.event = Image.RESTORE
-            template.save()
-
         size = Size.objects.get(slug=size_slug)
         region = Region.objects.get(slug=region_slug)
 
-        virtance = Virtance.objects.create(
-            user=user,
-            name=name,
-            size=size,
-            event=Virtance.CREATE,
-            region=region,
-            disk=size.disk,
-            template=template,
-            user_data=user_data,
-        )
+        with transaction.atomic():
+            if template.type == Image.SNAPSHOT or template.type == Image.BACKUP:
+                template.event = Image.RESTORE
+                template.save()
 
-        if keypairs:
-            for k_id in keypairs:
-                KeyPairVirtance.objects.create(keypair_id=k_id, virtance=virtance)
+            virtance = Virtance.objects.create(
+                user=user,
+                name=name,
+                size=size,
+                event=Virtance.CREATE,
+                region=region,
+                disk=size.disk,
+                template=template,
+                user_data=user_data,
+            )
 
-        if ipv6:
-            pass
+            if keypairs:
+                for k_id in keypairs:
+                    KeyPairVirtance.objects.create(keypair_id=k_id, virtance=virtance)
 
-        if backups:
-            virtance.enable_backups()
+            if ipv6 and assign_free_ipv6_public(virtance.id) is None:
+                raise serializers.ValidationError({"ipv6": ["No usable IPv6 address is available in the region."]})
 
-        create_virtance.delay(virtance.id, password=password)
+            if backups:
+                virtance.enable_backups()
+
+            transaction.on_commit(lambda: create_virtance.delay(virtance.id, password=password))
 
         validated_data["id"] = virtance.id
         return validated_data

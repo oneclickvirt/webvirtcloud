@@ -32,8 +32,12 @@ def firewall_attach(firewall_id, virtance_id, virtance_reset_event=True):
     virtance = Virtance.objects.select_related("compute").get(id=virtance_id, is_deleted=False)
     firewall = Firewall.objects.get(id=firewall_id, is_deleted=False)
     firewall_rules = Rule.objects.filter(firewall=firewall)
-    ipv4_public = IPAddress.objects.filter(virtance=virtance, network__type=Network.PUBLIC, is_float=False).first()
-    ipv4_private = IPAddress.objects.filter(virtance=virtance, network__type=Network.PRIVATE).first()
+    ipv4_public = IPAddress.objects.filter(
+        virtance=virtance, network__type=Network.PUBLIC, network__version=Network.IPv4, is_float=False
+    ).first()
+    ipv4_private = IPAddress.objects.filter(
+        virtance=virtance, network__type=Network.PRIVATE, network__version=Network.IPv4
+    ).first()
 
     if virtance.compute is None or ipv4_public is None or ipv4_private is None:
         return fail_firewall_task(
@@ -83,8 +87,12 @@ def firewall_attach(firewall_id, virtance_id, virtance_reset_event=True):
 def firewall_detach(firewall_id, virtance_id, virtance_reset_event=True, unlink_db=True):
     virtance = Virtance.objects.select_related("compute").get(id=virtance_id, is_deleted=False)
     firewall = Firewall.objects.get(id=firewall_id, is_deleted=False)
-    ipv4_public = IPAddress.objects.filter(virtance=virtance, network__type=Network.PUBLIC, is_float=False).first()
-    ipv4_private = IPAddress.objects.filter(virtance=virtance, network__type=Network.PRIVATE).first()
+    ipv4_public = IPAddress.objects.filter(
+        virtance=virtance, network__type=Network.PUBLIC, network__version=Network.IPv4, is_float=False
+    ).first()
+    ipv4_private = IPAddress.objects.filter(
+        virtance=virtance, network__type=Network.PRIVATE, network__version=Network.IPv4
+    ).first()
 
     if virtance.compute is None or ipv4_public is None or ipv4_private is None:
         return fail_firewall_task(

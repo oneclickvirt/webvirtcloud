@@ -14,7 +14,8 @@ DNS2={{ ipv4public.dns2 }}
 IPV6INIT=yes
 IPV6_AUTOCONF=no
 IPV6ADDR={{ ipv6public.address }}/{{ ipv6public.prefix }}
-IPV6_DEFAULTGW={{ ipv6public.gateway }}
-DNS1={{ ipv6public.dns1 }}
-DNS2={{ ipv6public.dns2 }}
+IPV6_DEFAULTGW={{ ipv6public.gateway }}{% if ipv6public.gateway_is_link_local %}%eth0{% endif %}
+{% for dns_server in ipv6public.dns_servers %}
+DNS{{ loop.index + 2 }}={{ dns_server }}
+{% endfor %}
 {% endif %}"""

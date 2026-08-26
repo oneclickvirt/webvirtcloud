@@ -53,6 +53,7 @@ export const schema = z.object({
   }),
   userdata: z.string().optional(),
   backups: z.boolean().default(false),
+  ipv6: z.boolean().default(false),
   name: z.string().min(1, { message: 'Please enter virtance name.' }),
 });
 

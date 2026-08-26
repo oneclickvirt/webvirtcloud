@@ -65,13 +65,13 @@ class AdminLBaaSDataView(AdminTemplateView):
         context["health_table"] = health_table
         context["virtances_table"] = virtances_table
         context["ipv4_public"] = IPAddress.objects.filter(
-            network__type=Network.PUBLIC, virtance=lbaas.virtance
+            network__type=Network.PUBLIC, network__version=Network.IPv4, virtance=lbaas.virtance
         ).first()
         context["ipv4_private"] = IPAddress.objects.filter(
-            network__type=Network.PRIVATE, virtance=lbaas.virtance
+            network__type=Network.PRIVATE, network__version=Network.IPv4, virtance=lbaas.virtance
         ).first()
         context["ipv4_compute"] = IPAddress.objects.filter(
-            network__type=Network.COMPUTE, virtance=lbaas.virtance
+            network__type=Network.COMPUTE, network__version=Network.IPv4, virtance=lbaas.virtance
         ).first()
         if context["ipv4_public"] is None:
             messages.error(self.request, "No public IP address assigned to this load balancer")

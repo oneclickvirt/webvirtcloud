@@ -1,8 +1,11 @@
 import random
-from ipaddress import IPv4Network, IPv6Network, ip_address
+from ipaddress import IPv4Network
+
+from django.db import transaction
 
 from virtance.models import Virtance
 from .models import Network, IPAddress
+from .ipv6 import first_assignable_ipv6_address, ipv6_network, ipv6_network_config
 
 
 # First is a gateway and 2 lasts are reserved for broadcast and system needs
@@ -55,19 +58,48 @@ def assign_free_ipv4_private(virtance_id):
 
 
 def assign_free_ipv6_public(virtance_id):
-    virtance = Virtance.objects.select_related("region").get(id=virtance_id, is_deleted=False)
-    networks = Network.objects.filter(
-        region=virtance.region, version=Network.IPv6, type=Network.PUBLIC, is_active=True, is_deleted=False
-    )
-    for net in networks:
-        step = 16
-        nums = 2**step
-        subnet = IPv6Network(f"{net.cidr}/{net.netmask}")
-        start = int(subnet.network_address) + step
-        end = int(subnet.broadcast_address) + 1
-        limit = nums if nums < end else end - 1  # Check if limit is greater than end
-        for i in random.sample(range(start, end, step), k=limit):
-            if not IPAddress.objects.filter(network=net, address=str(ip_address(i))).exists():
-                ipaddr = IPAddress.objects.create(network=net, address=str(ip_address(i)), virtance=virtance)
+    # Lock the virtance and its candidate pools together. This keeps retries
+    # idempotent and prevents two concurrent create requests from leasing the
+    # same IPv6 address without ever expanding a /64 or larger prefix.
+    with transaction.atomic():
+        virtance = Virtance.objects.select_for_update().select_related("region").get(id=virtance_id, is_deleted=False)
+        existing = IPAddress.objects.filter(
+            virtance=virtance,
+            is_float=False,
+            network__type=Network.PUBLIC,
+            network__version=Network.IPv6,
+        ).first()
+        if existing is not None:
+            return existing.id
+
+        networks = Network.objects.select_for_update().filter(
+            region=virtance.region,
+            version=Network.IPv6,
+            type=Network.PUBLIC,
+            is_active=True,
+            is_deleted=False,
+        ).order_by("id")
+        for net in networks:
+            try:
+                subnet = ipv6_network(net.cidr, net.netmask)
+                assigned_addresses = (
+                    IPAddress.objects.select_for_update().filter(network=net).values_list("address", flat=True)
+                )
+                address = first_assignable_ipv6_address(subnet, assigned_addresses, gateway=net.gateway)
+            except ValueError:
+                continue
+
+            if address is not None:
+                ipaddr = IPAddress.objects.create(network=net, address=str(address), virtance=virtance)
                 return ipaddr.id
     return None
+
+
+def ipv6_public_network_config(ipaddr):
+    return ipv6_network_config(
+        ipaddr.address,
+        ipaddr.network.cidr,
+        ipaddr.network.netmask,
+        ipaddr.network.gateway,
+        dns_servers=(ipaddr.network.dns1, ipaddr.network.dns2),
+    )

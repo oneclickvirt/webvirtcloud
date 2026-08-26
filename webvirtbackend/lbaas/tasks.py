@@ -170,7 +170,10 @@ def lbaas_member_vars_or_fail(lbaas, event):
     virtances = []
     for l_v in LBaaSVirtance.objects.filter(lbaas=lbaas, virtance__is_deleted=False, is_deleted=False):
         ipv4_private = IPAddress.objects.filter(
-            virtance=l_v.virtance, network__type=Network.PRIVATE, is_float=False
+            virtance=l_v.virtance,
+            network__type=Network.PRIVATE,
+            network__version=Network.IPv4,
+            is_float=False,
         ).first()
         if ipv4_private is None:
             fail_lbaas_task(
@@ -197,10 +200,16 @@ def create_lbaas(lbaas_id):
         return fail_lbaas_task(lbaas, "Load balancer backing virtance creation failed.", "lbaas_create")
 
     ipv4_public = IPAddress.objects.filter(
-        virtance=lbaas.virtance, network__type=Network.PUBLIC, is_float=False
+        virtance=lbaas.virtance,
+        network__type=Network.PUBLIC,
+        network__version=Network.IPv4,
+        is_float=False,
     ).first()
     ipv4_private = IPAddress.objects.filter(
-        virtance=lbaas.virtance, network__type=Network.PRIVATE, is_float=False
+        virtance=lbaas.virtance,
+        network__type=Network.PRIVATE,
+        network__version=Network.IPv4,
+        is_float=False,
     ).first()
     if not ipv4_public or not ipv4_private:
         return fail_lbaas_task(lbaas, "Load balancer backing virtance is missing required IP addresses.", "lbaas_create")
@@ -266,10 +275,16 @@ def reload_lbaas(lbaas_id):
     lbaas = LBaaS.objects.get(id=lbaas_id)
     private_key = decrypt_data(lbaas.private_key)
     ipv4_public = IPAddress.objects.filter(
-        virtance=lbaas.virtance, network__type=Network.PUBLIC, is_float=False
+        virtance=lbaas.virtance,
+        network__type=Network.PUBLIC,
+        network__version=Network.IPv4,
+        is_float=False,
     ).first()
     ipv4_private = IPAddress.objects.filter(
-        virtance=lbaas.virtance, network__type=Network.PRIVATE, is_float=False
+        virtance=lbaas.virtance,
+        network__type=Network.PRIVATE,
+        network__version=Network.IPv4,
+        is_float=False,
     ).first()
 
     if not ipv4_public or not ipv4_private:

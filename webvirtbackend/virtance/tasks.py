@@ -14,6 +14,7 @@ from network.helper import (
     assign_free_ipv4_public,
     assign_free_ipv4_compute,
     assign_free_ipv4_private,
+    ipv6_public_network_config,
 )
 from lbaas.models import LBaaS, LBaaSVirtance
 from image.tasks import image_delete
@@ -68,6 +69,18 @@ def response_detail(res):
     return "Compute returned an invalid response."
 
 
+def get_ipv6_public_network(virtance):
+    ipaddr = IPAddress.objects.filter(
+        virtance=virtance,
+        is_float=False,
+        network__type=Network.PUBLIC,
+        network__version=Network.IPv6,
+    ).select_related("network").first()
+    if ipaddr is None:
+        return None
+    return ipv6_public_network_config(ipaddr)
+
+
 def stop_virtance_counter(virtance):
     current_time = timezone.now()
     first_day_month = current_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -117,21 +130,30 @@ def create_virtance(virtance_id, password=None, send_email=True):
             virtance.compute = compute
 
     try:
-        ipv4_compute = IPAddress.objects.get(virtance=virtance, network__type=Network.COMPUTE)
+        ipv4_compute = IPAddress.objects.get(
+            virtance=virtance, network__type=Network.COMPUTE, network__version=Network.IPv4
+        )
     except IPAddress.DoesNotExist:
         ipv4_compute_id = assign_free_ipv4_compute(virtance_id)
         if ipv4_compute_id is not None:
             ipv4_compute = IPAddress.objects.get(id=ipv4_compute_id)
 
     try:
-        ipv4_public = IPAddress.objects.get(virtance=virtance, is_float=False, network__type=Network.PUBLIC)
+        ipv4_public = IPAddress.objects.get(
+            virtance=virtance,
+            is_float=False,
+            network__type=Network.PUBLIC,
+            network__version=Network.IPv4,
+        )
     except IPAddress.DoesNotExist:
         ipv4_public_id = assign_free_ipv4_public(virtance_id)
         if ipv4_public_id is not None:
             ipv4_public = IPAddress.objects.get(id=ipv4_public_id)
 
     try:
-        ipv4_private = IPAddress.objects.get(virtance=virtance, network__type=Network.PRIVATE)
+        ipv4_private = IPAddress.objects.get(
+            virtance=virtance, network__type=Network.PRIVATE, network__version=Network.IPv4
+        )
     except IPAddress.DoesNotExist:
         ipv4_private_id = assign_free_ipv4_private(virtance_id)
         if ipv4_private_id is not None:
@@ -158,6 +180,17 @@ def create_virtance(virtance_id, password=None, send_email=True):
         return fail_virtance_task(
             virtance,
             f"Cannot create virtance; missing {', '.join(missing_resources)}.",
+            "create",
+            reset_status=True,
+            clear_networks=True,
+        )
+
+    try:
+        ipv6_public = get_ipv6_public_network(virtance)
+    except ValueError as error:
+        return fail_virtance_task(
+            virtance,
+            f"Cannot create virtance; invalid public IPv6 configuration: {error}",
             "create",
             reset_status=True,
             clear_networks=True,
@@ -201,7 +234,7 @@ def create_virtance(virtance_id, password=None, send_email=True):
                 "netmask": ipv4_private.network.netmask,
             },
         },
-        "v6": None,
+        "v6": ipv6_public,
     }
 
     wvcomp = wvcomp_conn(compute)
@@ -258,9 +291,22 @@ def rebuild_virtance(virtance_id):
     if wvcomp is None:
         return False
 
-    ipv4_public = IPAddress.objects.filter(network__type=Network.PUBLIC, virtance=virtance, is_float=False).first()
-    ipv4_compute = IPAddress.objects.filter(network__type=Network.COMPUTE, virtance=virtance).first()
-    ipv4_private = IPAddress.objects.filter(network__type=Network.PRIVATE, virtance=virtance).first()
+    ipv4_public = IPAddress.objects.filter(
+        network__type=Network.PUBLIC,
+        network__version=Network.IPv4,
+        virtance=virtance,
+        is_float=False,
+    ).select_related("network").first()
+    ipv4_compute = IPAddress.objects.filter(
+        network__type=Network.COMPUTE,
+        network__version=Network.IPv4,
+        virtance=virtance,
+    ).select_related("network").first()
+    ipv4_private = IPAddress.objects.filter(
+        network__type=Network.PRIVATE,
+        network__version=Network.IPv4,
+        virtance=virtance,
+    ).select_related("network").first()
     missing_resources = []
     if ipv4_public is None:
         missing_resources.append("public IPv4")
@@ -271,6 +317,12 @@ def rebuild_virtance(virtance_id):
     if missing_resources:
         return fail_virtance_task(
             virtance, f"Cannot rebuild virtance; missing {', '.join(missing_resources)}.", "rebuild"
+        )
+    try:
+        ipv6_public = get_ipv6_public_network(virtance)
+    except ValueError as error:
+        return fail_virtance_task(
+            virtance, f"Cannot rebuild virtance; invalid public IPv6 configuration: {error}", "rebuild"
         )
     password_hash = sha512_crypt.encrypt(uuid4().hex[0:24], salt=uuid4().hex[0:8], rounds=5000)
 
@@ -311,7 +363,7 @@ def rebuild_virtance(virtance_id):
                 "netmask": ipv4_private.network.netmask,
             },
         },
-        "v6": None,
+        "v6": ipv6_public,
     }
 
     res = wvcomp.rebuild_virtance(virtance.id, virtance.name, images, network, keypairs, password_hash)

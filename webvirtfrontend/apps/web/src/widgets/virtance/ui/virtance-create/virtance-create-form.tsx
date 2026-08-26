@@ -68,6 +68,7 @@ export default function VirtanceCreateForm({
         image: data.image.id,
         region: data.region.slug,
         backups: data.backups,
+        ipv6: data.ipv6,
         ...(data.authentication?.keys && data.authentication.keys.size > 0
           ? { keypairs: [...data.authentication.keys.values()] }
           : {}),

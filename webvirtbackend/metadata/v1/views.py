@@ -11,10 +11,12 @@ def not_found_response():
     return HttpResponse("Not Found", status=404)
 
 
-def get_virtance_ip(virtance, network_type):
+def get_virtance_ip(virtance, network_type, version=Network.IPv4):
     if virtance is None:
         return None
-    return IPAddress.objects.select_related("network").filter(virtance=virtance, network__type=network_type).first()
+    return IPAddress.objects.select_related("network").filter(
+        virtance=virtance, network__type=network_type, network__version=version
+    ).first()
 
 
 def ip_metadata(ipaddr):

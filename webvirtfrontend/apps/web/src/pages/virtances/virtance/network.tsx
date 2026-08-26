@@ -6,6 +6,10 @@ import { VirtanceFirewall } from '@/widgets/virtance';
 export default function VirtanceNetworkPage() {
   const { id } = useParams();
   const { data: virtance } = useVirtance(Number(id));
+  const privateIpv4 = virtance?.networks.v4.find((network) => network.type === 'private');
+  const publicIpv4 = virtance?.networks.v4.find((network) => network.type === 'public');
+  const computeIpv4 = virtance?.networks.v4.find((network) => network.type === 'compute');
+  const publicIpv6 = virtance?.networks.v6.find((network) => network.type === 'public');
 
   return (
     <div className="space-y-8">
@@ -14,16 +18,24 @@ export default function VirtanceNetworkPage() {
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
           <div className="space-y-1 rounded-lg border p-4">
             <h4 className="text-muted-foreground font-medium">Private IP</h4>
-            <p className="font-medium">{virtance?.networks.v4[0]?.address ?? '-'}</p>
+            <p className="font-medium">{privateIpv4?.address ?? '-'}</p>
           </div>
           <div className="space-y-1 rounded-lg border p-4">
             <h4 className="text-muted-foreground font-medium">Public IP</h4>
-            <p className="font-medium">{virtance?.networks.v4[1]?.address ?? '-'}</p>
+            <p className="font-medium">{publicIpv4?.address ?? '-'}</p>
           </div>
           <div className="space-y-1 rounded-lg border p-4">
             <h4 className="text-muted-foreground font-medium">Compute IP</h4>
-            <p className="font-medium">{virtance?.networks.v4[2]?.address ?? '-'}</p>
+            <p className="font-medium">{computeIpv4?.address ?? '-'}</p>
           </div>
+          {publicIpv6 ? (
+            <div className="space-y-1 rounded-lg border p-4">
+              <h4 className="text-muted-foreground font-medium">Public IPv6</h4>
+              <p className="break-all font-medium">
+                {publicIpv6.address}/{publicIpv6.prefix}
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
       <VirtanceFirewall id={Number(id)} />

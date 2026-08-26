@@ -17,12 +17,13 @@ netsh interface ipv4 add dnsservers "Ethernet" {{ ipv4public.dns2 }} index=2
 
 REM IPv4 Anchor
 netsh interface ipv4 add address "Ethernet" {{ ipv4compute.address }} {{ ipv4compute.prefix }}
-{% if ip6public %}
+{% if ipv6public %}
 REM IPv6 Public
 netsh interface ipv6 delete dnsservers "Ethernet" all
 netsh interface ipv6 reset
 netsh interface ipv6 set address "Ethernet" {{ ipv6public.address }}/{{ ipv6public.prefix }}
 netsh interface ipv6 add route ::/0 "Ethernet" {{ ipv6public.gateway }}
-netsh interface ipv6 add dnsservers "Ethernet" {{ ipv6public.dns1 }}
-netsh interface ipv6 add dnsservers "Ethernet" {{ ipv6public.dns2 }} index=2
+{% for dns_server in ipv6public.dns_servers %}
+netsh interface ipv6 add dnsservers "Ethernet" {{ dns_server }} index={{ loop.index }}
+{% endfor %}
 {% endif %}"""

@@ -18,8 +18,9 @@ rancher:
         dns:
           nameservers:
           - {{ ipv4public.dns1 }}
-          - {{ ipv4public.dns1 }}
+          - {{ ipv4public.dns2 }}
           {% if ipv6public %}
-          - {{ ipv6public.dns1 }}
-          - {{ ipv6public.dns2 }}
+          {% for dns_server in ipv6public.dns_servers %}
+          - {{ dns_server }}
+          {% endfor %}
           {% endif %}"""

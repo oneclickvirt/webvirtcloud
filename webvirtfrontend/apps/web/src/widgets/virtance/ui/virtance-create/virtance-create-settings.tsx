@@ -5,6 +5,7 @@ import { Label } from 'ui/components/label';
 import type { CreateVirtanceForm } from './types';
 import { VirtanceCreateAdvancedOptions } from './virtance-create-advanced-options';
 import { VirtanceCreateBackupsSettings } from './virtance-create-backups-settings';
+import { VirtanceCreateIPv6Settings } from './virtance-create-ipv6-settings';
 import { VirtanceCreateSecurity } from './virtance-create-security';
 
 export function VirtanceCreateSettings() {
@@ -20,6 +21,7 @@ export function VirtanceCreateSettings() {
       <div className="space-y-8">
         <VirtanceCreateSecurity />
         <VirtanceCreateBackupsSettings />
+        <VirtanceCreateIPv6Settings />
         <VirtanceCreateAdvancedOptions />
 
         <div className="flex flex-col gap-2">

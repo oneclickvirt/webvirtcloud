@@ -59,6 +59,7 @@ export function VirtanceCreate() {
       },
       name: '',
       backups: false,
+      ipv6: false,
       authentication: {
         method: 'ssh',
         keys: new Set(),

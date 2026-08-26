@@ -146,7 +146,11 @@ fi
 
 echo
 echo "=== Python syntax ==="
-python3 -m compileall -q -x '(^|/)\.venv(/|$)' webvirtbackend webvirtcompute prometheus-libvirt-exporter && log_pass "Python compileall"
+python3 -m compileall -q -x '.*\/\.venv\/.*' webvirtbackend webvirtcompute prometheus-libvirt-exporter && log_pass "Python compileall"
+
+echo
+echo "=== IPv6 network handling ==="
+python3 tests/test_ipv6_network.py && log_pass "IPv6 network allocation and configuration"
 
 echo
 echo "=== JSON syntax ==="

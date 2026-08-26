@@ -1,4 +1,3 @@
-from ipaddress import ip_network
 from django.contrib import messages
 from django.urls import reverse_lazy
 from django_tables2 import SingleTableMixin
@@ -7,7 +6,7 @@ from django.shortcuts import redirect
 from crispy_forms.helper import FormHelper
 
 from network.models import Network, IPAddress
-from .forms import FormNetwork
+from .forms import FormNetwork, FormNetworkUpdate
 from .filters import NetworkFilter, NetworkListFilter
 from .tables import NetworkHTMxTable, NetworkListHTMxTable
 from admin.mixins import AdminView, AdminFormView, AdminUpdateView, AdminDeleteView
@@ -42,7 +41,7 @@ class AdminNetworkUpdateView(AdminUpdateView):
     template_name_suffix = "_form"
     model = Network
     success_url = reverse_lazy("admin_network_index")
-    fields = ["cidr", "netmask", "dns1", "dns2", "is_active"]
+    form_class = FormNetworkUpdate
 
     def __init__(self, *args, **kwargs):
         super(AdminNetworkUpdateView, self).__init__(*args, **kwargs)
@@ -54,15 +53,6 @@ class AdminNetworkUpdateView(AdminUpdateView):
             messages.error(self.request, "Network has assigned IP addresses and cannot be updated")
             return redirect(reverse_lazy("admin_network_index"))
         return super().dispatch(request, *args, **kwargs)
-
-    def form_valid(self, form):
-        cidr = form.cleaned_data.get("cidr")
-        netmask = form.cleaned_data.get("netmask")
-        subnet = ip_network(f"{cidr}/{netmask}")
-        self.object.gateway = str(subnet[1])
-        self.object.save()
-        form.save()
-        return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
         context = super(AdminNetworkUpdateView, self).get_context_data(**kwargs)
